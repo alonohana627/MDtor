@@ -6,8 +6,14 @@ function renderEditor(props: Partial<Parameters<typeof MarkdownEditor>[0]> = {})
   const defaultProps = {
     value: "line one\nline two\nline three",
     currentLine: 1,
+    activeFilePath: "chapter-01.md",
+    isDirty: false,
+    direction: "ltr" as const,
+    isSaveDisabled: false,
     onChange: vi.fn(),
     onCurrentLineChange: vi.fn(),
+    onSave: vi.fn(),
+    onDirectionChange: vi.fn(),
   };
 
   return {
@@ -20,12 +26,26 @@ describe("MarkdownEditor", () => {
   it("renders the heading, current line label, line numbers, and editor value", () => {
     const { container } = renderEditor({ currentLine: 2 });
 
-    expect(screen.getByRole("heading", { name: "Markdown" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "chapter-01.md" })).toBeInTheDocument();
     expect(screen.getByText("Line 2")).toBeInTheDocument();
     expect(screen.getByLabelText("Markdown editor")).toHaveValue(
       "line one\nline two\nline three",
     );
     expect(container.querySelector(".line-number-gutter")).toHaveValue("1\n2\n3");
+  });
+
+  it("shows dirty state and emits save and direction changes", () => {
+    const onSave = vi.fn();
+    const onDirectionChange = vi.fn();
+    renderEditor({ isDirty: true, onSave, onDirectionChange });
+
+    expect(screen.getByLabelText("Unsaved changes")).toHaveTextContent("*");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "RTL" }));
+
+    expect(onSave).toHaveBeenCalled();
+    expect(onDirectionChange).toHaveBeenCalledWith("rtl");
   });
 
   it("calls onChange with the next editor value", () => {

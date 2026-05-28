@@ -10,10 +10,67 @@
 }
 
 .current-line-label {
+  flex-shrink: 0;
   margin-left: auto;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.dirty-marker {
+  margin-left: 6px;
+  color: var(--error);
+  font-weight: 800;
+}
+
+.editor-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.direction-control {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.direction-control button,
+.save-button {
+  border: 0;
+  color: var(--button-text);
+  background: var(--button-bg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.direction-control button {
+  min-width: 42px;
+  padding: 6px 8px;
+}
+
+.direction-control button + button {
+  border-left: 1px solid var(--border-strong);
+}
+
+.direction-control button.active {
+  color: var(--preview-bg);
+  background: var(--focus);
+}
+
+.save-button {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.save-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .line-number-gutter,
@@ -44,6 +101,12 @@
   user-select: none;
 }
 
+.editor-surface[dir="rtl"] .line-number-gutter {
+  border-right: 0;
+  border-left: 1px solid var(--border);
+  text-align: left;
+}
+
 .markdown-editor-stack {
   position: relative;
   min-width: 0;
@@ -58,6 +121,7 @@
   overflow: hidden;
   color: var(--editor-text);
   pointer-events: none;
+  unicode-bidi: plaintext;
 }
 
 .markdown-textarea {
@@ -75,6 +139,7 @@
   background-origin: content-box;
   background-clip: content-box;
   overflow: auto;
+  unicode-bidi: plaintext;
 }
 
 .markdown-textarea::selection {
@@ -155,5 +220,10 @@
 
   .line-number-gutter {
     padding-right: 10px;
+  }
+
+  .editor-actions {
+    gap: 6px;
+    margin-left: 10px;
   }
 }

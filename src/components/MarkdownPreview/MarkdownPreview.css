@@ -58,6 +58,12 @@
   padding-left: 1.55rem;
 }
 
+.preview[dir="rtl"] ul,
+.preview[dir="rtl"] ol {
+  padding-right: 1.55rem;
+  padding-left: 0;
+}
+
 .preview li + li {
   margin-top: 0.2em;
 }
@@ -93,6 +99,11 @@
   background: var(--quote-bg);
 }
 
+.preview[dir="rtl"] blockquote {
+  border-right: 4px solid var(--muted);
+  border-left: 0;
+}
+
 .preview code {
   border-radius: 5px;
   padding: 0.16em 0.34em;
@@ -110,6 +121,9 @@
   padding: 16px;
   background: var(--code-block-bg);
   color: var(--code-block-text);
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
 }
 
 .code-language-label {
@@ -127,6 +141,8 @@
   background: transparent;
   color: inherit;
   white-space: pre;
+  direction: ltr;
+  text-align: left;
 }
 
 .shiki-line {

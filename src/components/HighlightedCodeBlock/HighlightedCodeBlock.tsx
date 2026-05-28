@@ -18,7 +18,7 @@ type CodeToken = {
 type HighlightedLine = CodeToken[];
 
 const shikiThemes: Record<Theme, "github-light" | "github-dark"> = {
-  light: "github-light",
+  light: "github-dark",
   dark: "github-dark",
 };
 
