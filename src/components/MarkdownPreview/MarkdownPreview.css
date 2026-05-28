@@ -1,0 +1,145 @@
+.preview {
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+  color: var(--text);
+  background: var(--preview-bg);
+  line-height: 1.65;
+}
+
+.preview > :first-child {
+  margin-top: 0;
+}
+
+.preview > :last-child {
+  margin-bottom: 0;
+}
+
+.preview h1,
+.preview h2,
+.preview h3,
+.preview h4,
+.preview h5,
+.preview h6 {
+  margin: 1.35em 0 0.55em;
+  color: var(--text-strong);
+  line-height: 1.2;
+}
+
+.preview h1 {
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--border);
+  font-size: 2rem;
+}
+
+.preview h2 {
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.45rem;
+}
+
+.preview h3 {
+  font-size: 1.18rem;
+}
+
+.preview p {
+  margin: 0 0 1em;
+}
+
+.preview a {
+  color: var(--link);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+}
+
+.preview ul,
+.preview ol {
+  margin: 0 0 1em;
+  padding-left: 1.55rem;
+}
+
+.preview li + li {
+  margin-top: 0.2em;
+}
+
+.active-preview-block {
+  font-weight: 700;
+}
+
+.active-preview-block,
+.active-preview-line {
+  border-radius: 6px;
+  background: var(--active-preview-bg);
+}
+
+.active-preview-line {
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+}
+
+.preview p.active-preview-block,
+.preview blockquote.active-preview-block,
+.preview pre.active-preview-block,
+.preview ul.active-preview-block,
+.preview ol.active-preview-block {
+  padding: 0.35rem 0.55rem;
+}
+
+.preview blockquote {
+  margin: 0 0 1em;
+  padding: 0.2em 1em;
+  color: var(--muted);
+  border-left: 4px solid var(--muted);
+  background: var(--quote-bg);
+}
+
+.preview code {
+  border-radius: 5px;
+  padding: 0.16em 0.34em;
+  background: var(--code-bg);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.preview pre {
+  position: relative;
+  overflow: auto;
+  margin: 0 0 1em;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--code-block-bg);
+  color: var(--code-block-text);
+}
+
+.code-language-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--link);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.preview pre code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  white-space: pre;
+}
+
+.shiki-line {
+  display: inline;
+}
+
+.empty-preview {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 760px) {
+  .preview {
+    padding: 16px;
+  }
+}

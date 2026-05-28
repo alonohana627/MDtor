@@ -1,0 +1,159 @@
+.editor-surface {
+  --editor-font-size: 15px;
+  --editor-line-height: 24px;
+
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--editor-bg);
+}
+
+.current-line-label {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.line-number-gutter,
+.markdown-textarea,
+.markdown-highlight-layer {
+  height: 100%;
+  min-height: 0;
+  padding: 20px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  tab-size: 2;
+  white-space: pre;
+}
+
+.line-number-gutter {
+  width: 100%;
+  padding-right: 10px;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--editor-gutter-bg);
+  color: var(--muted);
+  pointer-events: none;
+  text-align: right;
+  user-select: none;
+}
+
+.markdown-editor-stack {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--editor-bg);
+}
+
+.markdown-highlight-layer {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--editor-text);
+  pointer-events: none;
+}
+
+.markdown-textarea {
+  position: relative;
+  width: 100%;
+  caret-color: var(--editor-text);
+  color: transparent;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--editor-line-height) - 1px),
+    var(--editor-line) calc(var(--editor-line-height) - 1px),
+    var(--editor-line) var(--editor-line-height)
+  );
+  background-origin: content-box;
+  background-clip: content-box;
+  overflow: auto;
+}
+
+.markdown-textarea::selection {
+  color: transparent;
+  background: var(--selection);
+}
+
+.markdown-textarea:focus {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.highlight-line {
+  display: inline;
+}
+
+.md-token-heading-marker {
+  color: var(--token-heading-marker);
+  font-weight: 700;
+}
+
+.md-token-heading-text {
+  color: var(--token-heading-text);
+  font-weight: 700;
+}
+
+.md-token-list-marker {
+  color: var(--token-list-marker);
+  font-weight: 700;
+}
+
+.md-token-quote-marker,
+.md-token-quote-text {
+  color: var(--token-quote);
+  font-style: italic;
+}
+
+.md-token-code-fence,
+.md-token-code-language,
+.md-token-code-text,
+.md-token-inline-code {
+  color: var(--token-code);
+}
+
+.md-token-code-language {
+  font-weight: 700;
+}
+
+.md-token-strong {
+  color: var(--token-strong);
+  font-weight: 700;
+}
+
+.md-token-emphasis {
+  color: var(--token-emphasis);
+  font-style: italic;
+}
+
+.md-token-link-text {
+  color: var(--token-link-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.md-token-link-url {
+  color: var(--token-link-url);
+}
+
+@media (max-width: 760px) {
+  .editor-surface {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .line-number-gutter,
+  .markdown-textarea,
+  .markdown-highlight-layer {
+    padding: 16px;
+  }
+
+  .line-number-gutter {
+    padding-right: 10px;
+  }
+}
