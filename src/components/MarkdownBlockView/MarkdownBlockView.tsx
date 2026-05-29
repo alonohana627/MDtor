@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { type DocumentDirection, type Theme } from "../../App";
+import { type DocumentDirection, type Theme } from "../../types";
 import { MarkdownBlock } from "../../markdown/types";
 import { HighlightedCodeBlock } from "../HighlightedCodeBlock";
 import { renderInlineMarkdown } from "../../markdown/renderInlineMarkdown";

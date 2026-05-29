@@ -1,5 +1,5 @@
-import { useMemo, useRef } from "react";
-import { type DocumentDirection } from "../../App";
+import { type Ref, useMemo, useRef } from "react";
+import { type DocumentDirection } from "../../types";
 import { MarkdownHighlightLayer } from "../MarkdownHighlightLayer";
 import "./MarkdownEditor.css";
 
@@ -10,6 +10,7 @@ type MarkdownEditorProps = {
   isDirty: boolean;
   direction: DocumentDirection;
   isSaveDisabled: boolean;
+  editorRef?: Ref<HTMLTextAreaElement>;
   onChange: (nextValue: string) => void;
   onCurrentLineChange: (line: number) => void;
   onSave: () => void;
@@ -27,6 +28,7 @@ export function MarkdownEditor({
   isDirty,
   direction,
   isSaveDisabled,
+  editorRef,
   onChange,
   onCurrentLineChange,
   onSave,
@@ -108,6 +110,7 @@ export function MarkdownEditor({
         <div className="markdown-editor-stack">
           <MarkdownHighlightLayer ref={highlightRef} markdown={value} />
           <textarea
+            ref={editorRef}
             className="markdown-textarea"
             aria-label="Markdown editor"
             dir={direction}
