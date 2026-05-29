@@ -1,7 +1,6 @@
 import { type ProjectFile } from "./projectFiles";
 
-export type BrowserProjectFile =
-  { kind: "writable"; handle: FileSystemFileHandle };
+export type BrowserProjectFile = { kind: "writable"; handle: FileSystemFileHandle };
 
 export type BrowserProject = {
   name: string;
@@ -14,6 +13,31 @@ function isMarkdownFile(fileName: string) {
   const lowerFileName = fileName.toLowerCase();
 
   return lowerFileName.endsWith(".md") || lowerFileName.endsWith(".markdown");
+}
+
+function parseProjectFilePath(relativePath: string, action: "create" | "delete") {
+  const pathParts = relativePath.split("/").filter(Boolean);
+  const fileName = pathParts.pop();
+
+  if (
+    !fileName ||
+    !isMarkdownFile(fileName) ||
+    pathParts.some((pathPart) => pathPart === "." || pathPart === "..") ||
+    fileName === "." ||
+    fileName === ".."
+  ) {
+    throw new Error(
+      action === "create"
+        ? "New files must use a safe relative .md or .markdown path."
+        : "Only Markdown files inside the project folder can be deleted.",
+    );
+  }
+
+  return { pathParts, fileName };
+}
+
+function getErrorName(error: unknown) {
+  return typeof error === "object" && error && "name" in error ? String(error.name) : "";
 }
 
 async function collectMarkdownFiles(
@@ -114,12 +138,7 @@ export async function createBrowserProjectFile(
   fileHandles: Map<string, BrowserProjectFile>,
   relativePath: string,
 ) {
-  const pathParts = relativePath.split("/").filter(Boolean);
-  const fileName = pathParts.pop();
-
-  if (!fileName || !isMarkdownFile(fileName)) {
-    throw new Error("New files must use a .md or .markdown extension.");
-  }
+  const { pathParts, fileName } = parseProjectFilePath(relativePath, "create");
 
   let currentDirectory = directoryHandle;
 
@@ -129,13 +148,16 @@ export async function createBrowserProjectFile(
     });
   }
 
-  const fileHandle = await currentDirectory.getFileHandle(fileName, { create: true });
-  const existingFile = await fileHandle.getFile();
-
-  if (existingFile.size > 0) {
+  try {
+    await currentDirectory.getFileHandle(fileName);
     throw new Error("A file already exists at that path.");
+  } catch (error) {
+    if (getErrorName(error) !== "NotFoundError") {
+      throw error;
+    }
   }
 
+  const fileHandle = await currentDirectory.getFileHandle(fileName, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write("");
   await writable.close();
@@ -147,12 +169,7 @@ export async function deleteBrowserProjectFile(
   fileHandles: Map<string, BrowserProjectFile>,
   relativePath: string,
 ) {
-  const pathParts = relativePath.split("/").filter(Boolean);
-  const fileName = pathParts.pop();
-
-  if (!fileName || !isMarkdownFile(fileName)) {
-    throw new Error("Only Markdown files can be deleted.");
-  }
+  const { pathParts, fileName } = parseProjectFilePath(relativePath, "delete");
 
   let currentDirectory = directoryHandle;
 

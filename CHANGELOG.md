@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
 ### Features
 
@@ -17,6 +17,12 @@
 - Added one-second project folder polling so externally created or removed Markdown files appear in the sidebar while preserving manual file order for existing entries.
 - Added right-click deletion for Markdown files in the project sidebar.
 - Added last-opened project folder persistence for Tauri and supported browser folder handles.
+
+### Fixed
+
+- Fixed Markdown file creation in new nested subfolders for Tauri projects.
+- Fixed browser project file creation so existing empty files are rejected instead of being silently accepted.
+- Added browser project path validation before creating or deleting files.
 
 ## 0.1.0
 

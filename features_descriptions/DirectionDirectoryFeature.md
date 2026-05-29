@@ -9,9 +9,11 @@ The product direction is now:
 > a serious long-form writing environment for books, essays, philosophy, research notes, and multi-document writing projects.
 
 The editor must evolve from:
+
 - one Markdown buffer
 
 into:
+
 - a folder-based writing workspace.
 
 ---
@@ -27,6 +29,7 @@ MDtor should allow a user to:
 - preserve a clean distraction-free workflow
 
 The experience should feel:
+
 - lightweight
 - instant
 - native
@@ -34,6 +37,7 @@ The experience should feel:
 - focused on writing
 
 Not:
+
 - IDE-like
 - overloaded
 - Electron-bloat-style
@@ -51,12 +55,14 @@ A user opens a folder containing:
     notes/philosophy.md
 
 MDtor immediately shows:
+
 - a sidebar with Markdown files
 - the currently open file
 - live preview
 - instant switching between documents
 
 The user can:
+
 - click files
 - edit them
 - save them
@@ -69,16 +75,19 @@ without leaving the editor.
 # RTL / LTR Support
 
 MDtor must support writing in:
+
 - English
 - Hebrew
 - Arabic
 - mixed-direction documents
 
 The user can switch document direction between:
+
 - LTR
 - RTL
 
 Direction affects:
+
 - editor
 - preview
 - headings
@@ -97,6 +106,7 @@ The editor should feel natural for Hebrew philosophy writing.
 The sidebar represents the current project folder.
 
 Requirements:
+
 - show Markdown files only
 - recursive folder scan
 - display relative paths
@@ -104,6 +114,7 @@ Requirements:
 - instant file switching
 
 The sidebar is not:
+
 - a full file manager
 - a Git panel
 - a tree editor
@@ -115,11 +126,13 @@ Keep it simple.
 # File Behavior
 
 When a file is selected:
+
 - its content loads instantly
 - preview updates instantly
 - current document becomes active
 
 When switching files:
+
 - dirty documents save automatically first
 
 The app should preserve writing flow.
@@ -131,6 +144,7 @@ The app should preserve writing flow.
 The user can manually save.
 
 The UI must clearly indicate:
+
 - current file
 - unsaved changes
 
@@ -145,6 +159,7 @@ Unsaved state appears immediately after edits.
 # Scope Constraints
 
 Do NOT implement:
+
 - tabs
 - drag/drop reorder
 - rename
@@ -167,12 +182,14 @@ This feature is strictly:
 # UX Expectations
 
 The app should feel:
+
 - fast
 - quiet
 - minimal
 - writing-focused
 
 The workflow should resemble:
+
 - Obsidian simplicity
 - Typora smoothness
 - Zed responsiveness
@@ -184,6 +201,7 @@ without becoming a knowledge-management system.
 # Technical Constraints
 
 The current architecture must remain intact:
+
 - React
 - Tauri
 - current Markdown parser
@@ -211,6 +229,7 @@ and:
 Do not continue if validation fails.
 
 Do not run:
+
 - dev
 - tauri dev
 - tauri build
@@ -218,6 +237,7 @@ Do not run:
 - format
 
 Each implementation step should:
+
 - compile cleanly
 - preserve existing behavior
 - avoid unrelated refactors

@@ -59,7 +59,15 @@ fn resolve_new_project_file(project_path: &str, relative_path: &str) -> CommandR
 
     let path = root.join(relative);
     let parent = path.parent().unwrap_or(&root);
-    let canonical_parent = parent
+
+    let mut nearest_existing_ancestor = parent;
+    while !nearest_existing_ancestor.exists() {
+        nearest_existing_ancestor = nearest_existing_ancestor
+            .parent()
+            .ok_or_else(|| "Could not resolve project file folder.".to_string())?;
+    }
+
+    let canonical_parent = nearest_existing_ancestor
         .canonicalize()
         .map_err(|error| format!("Could not resolve project file folder: {error}"))?;
 
@@ -153,6 +161,11 @@ fn create_project_file(project_path: String, relative_path: String) -> CommandRe
         return Err("A file already exists at that path.".to_string());
     }
 
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Could not create Markdown file folder: {error}"))?;
+    }
+
     fs::write(path, "").map_err(|error| format!("Could not create Markdown file: {error}"))
 }
 
@@ -181,4 +194,51 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn test_project_root(name: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mdtor-{name}-{nonce}"));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn creates_markdown_file_in_new_subdirectory() {
+        let root = test_project_root("nested-create");
+
+        create_project_file(
+            root.to_string_lossy().to_string(),
+            "notes/idea.md".to_string(),
+        )
+        .unwrap();
+
+        assert!(root.join("notes").join("idea.md").is_file());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_existing_empty_file() {
+        let root = test_project_root("existing-empty");
+        fs::write(root.join("empty.md"), "").unwrap();
+
+        let result =
+            create_project_file(root.to_string_lossy().to_string(), "empty.md".to_string());
+
+        assert_eq!(
+            result,
+            Err("A file already exists at that path.".to_string())
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
 }

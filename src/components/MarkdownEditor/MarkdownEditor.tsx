@@ -61,7 +61,11 @@ export function MarkdownEditor({
     <section className="pane editor-pane" aria-labelledby="editor-title">
       <header className="pane-header">
         <h1 id="editor-title">{activeFilePath ?? "Markdown"}</h1>
-        {isDirty ? <span className="dirty-marker" aria-label="Unsaved changes">*</span> : null}
+        {isDirty ? (
+          <span className="dirty-marker" aria-label="Unsaved changes">
+            *
+          </span>
+        ) : null}
         <div className="editor-actions" aria-label="Document controls">
           <div className="direction-control" role="group" aria-label="Document direction">
             <button

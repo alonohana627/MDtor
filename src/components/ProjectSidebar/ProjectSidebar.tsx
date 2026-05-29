@@ -105,13 +105,14 @@ export function ProjectSidebar({
                   aria-current={isActive ? "page" : undefined}
                   disabled={isBusy}
                   onClick={() => onSelectFile(file.relativePath)}
-                  onContextMenu={(event) =>
-                    openFileContextMenu(event, file.relativePath)
-                  }
+                  onContextMenu={(event) => openFileContextMenu(event, file.relativePath)}
                 >
                   {label}
                 </button>
-                <div className="project-file-order-controls" aria-label={`${file.relativePath} order`}>
+                <div
+                  className="project-file-order-controls"
+                  aria-label={`${file.relativePath} order`}
+                >
                   <button
                     type="button"
                     aria-label={`Move ${file.relativePath} up`}

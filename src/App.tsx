@@ -36,9 +36,7 @@ import "./App.css";
 export type Theme = "light" | "dark";
 export type DocumentDirection = "ltr" | "rtl";
 
-type ProjectSource =
-  | { kind: "tauri"; path: string }
-  | { kind: "browser"; name: string };
+type ProjectSource = { kind: "tauri"; path: string } | { kind: "browser"; name: string };
 
 function App() {
   const [markdown, setMarkdown] = useState(starterMarkdown);
@@ -64,6 +62,33 @@ function App() {
         ? `${projectSource.name} (browser)`
         : null;
 
+  async function scanBrowserFolderForChanges() {
+    if (!browserDirectoryHandleRef.current) {
+      return projectFilesRef.current;
+    }
+
+    const browserProject = await scanBrowserProjectFolder(
+      browserDirectoryHandleRef.current,
+    );
+    browserFileHandlesRef.current = browserProject.fileHandles;
+
+    return browserProject.files;
+  }
+
+  function reconcileProjectFiles(
+    currentFiles: ProjectFile[],
+    scannedFiles: ProjectFile[],
+  ) {
+    const scannedPaths = new Set(scannedFiles.map((file) => file.relativePath));
+    const currentPaths = new Set(currentFiles.map((file) => file.relativePath));
+    const retainedFiles = currentFiles.filter((file) =>
+      scannedPaths.has(file.relativePath),
+    );
+    const newFiles = scannedFiles.filter((file) => !currentPaths.has(file.relativePath));
+
+    return [...retainedFiles, ...newFiles];
+  }
+
   useEffect(() => {
     projectFilesRef.current = projectFiles;
   }, [projectFiles]);
@@ -71,11 +96,35 @@ function App() {
   useEffect(() => {
     let isCancelled = false;
 
-    async function restoreLastProject() {
-      if (projectSource) {
+    async function restoreProjectFiles(
+      nextProjectSource: ProjectSource,
+      files: ProjectFile[],
+    ) {
+      const firstFile = files[0] ?? null;
+      const nextMarkdown = firstFile
+        ? nextProjectSource.kind === "tauri"
+          ? await readProjectFile(nextProjectSource.path, firstFile.relativePath)
+          : await readBrowserProjectFile(
+              browserFileHandlesRef.current,
+              firstFile.relativePath,
+            )
+        : "";
+
+      if (isCancelled) {
         return;
       }
 
+      projectFilesRef.current = files;
+      activeFilePathRef.current = firstFile?.relativePath ?? null;
+      setProjectSource(nextProjectSource);
+      setProjectFiles(files);
+      setActiveFilePath(firstFile?.relativePath ?? null);
+      setMarkdown(nextMarkdown);
+      setSavedMarkdown(nextMarkdown);
+      setCurrentLine(1);
+    }
+
+    async function restoreLastProject() {
       setIsBusy(true);
       setProjectError(null);
 
@@ -87,7 +136,7 @@ function App() {
             return;
           }
 
-          await loadProjectFiles(
+          await restoreProjectFiles(
             { kind: "tauri", path: lastProjectPath },
             await scanProjectFolder(lastProjectPath),
           );
@@ -101,7 +150,7 @@ function App() {
           const browserProject = await scanBrowserProjectFolder(directoryHandle);
           browserDirectoryHandleRef.current = directoryHandle;
           browserFileHandlesRef.current = browserProject.fileHandles;
-          await loadProjectFiles(
+          await restoreProjectFiles(
             { kind: "browser", name: directoryHandle.name },
             browserProject.files,
           );
@@ -146,10 +195,7 @@ function App() {
             ? await scanProjectFolder(projectSource.path)
             : await scanBrowserFolderForChanges();
 
-        const nextFiles = reconcileProjectFiles(
-          projectFilesRef.current,
-          scannedFiles,
-        );
+        const nextFiles = reconcileProjectFiles(projectFilesRef.current, scannedFiles);
 
         projectFilesRef.current = nextFiles;
         setProjectFiles(nextFiles);
@@ -175,28 +221,6 @@ function App() {
     };
   }, [projectSource]);
 
-  async function scanBrowserFolderForChanges() {
-    if (!browserDirectoryHandleRef.current) {
-      return projectFilesRef.current;
-    }
-
-    const browserProject = await scanBrowserProjectFolder(
-      browserDirectoryHandleRef.current,
-    );
-    browserFileHandlesRef.current = browserProject.fileHandles;
-
-    return browserProject.files;
-  }
-
-  function reconcileProjectFiles(currentFiles: ProjectFile[], scannedFiles: ProjectFile[]) {
-    const scannedPaths = new Set(scannedFiles.map((file) => file.relativePath));
-    const currentPaths = new Set(currentFiles.map((file) => file.relativePath));
-    const retainedFiles = currentFiles.filter((file) => scannedPaths.has(file.relativePath));
-    const newFiles = scannedFiles.filter((file) => !currentPaths.has(file.relativePath));
-
-    return [...retainedFiles, ...newFiles];
-  }
-
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
   }
@@ -206,10 +230,7 @@ function App() {
     setActiveFilePath(relativePath);
   }
 
-  async function readProjectDocument(
-    source: ProjectSource,
-    relativePath: string,
-  ) {
+  async function readProjectDocument(source: ProjectSource, relativePath: string) {
     return source.kind === "tauri"
       ? readProjectFile(source.path, relativePath)
       : readBrowserProjectFile(browserFileHandlesRef.current, relativePath);
@@ -233,12 +254,16 @@ function App() {
     setSavedMarkdown(content);
   }
 
-  async function loadProjectFiles(nextProjectSource: ProjectSource, files: ProjectFile[]) {
+  async function loadProjectFiles(
+    nextProjectSource: ProjectSource,
+    files: ProjectFile[],
+  ) {
     const firstFile = files[0] ?? null;
     const nextMarkdown = firstFile
       ? await readProjectDocument(nextProjectSource, firstFile.relativePath)
       : "";
 
+    projectFilesRef.current = files;
     setProjectSource(nextProjectSource);
     setProjectFiles(files);
     setActiveFile(firstFile?.relativePath ?? null);
@@ -403,11 +428,7 @@ function App() {
       );
       const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
 
-      if (
-        currentIndex < 0 ||
-        nextIndex < 0 ||
-        nextIndex >= currentFiles.length
-      ) {
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= currentFiles.length) {
         return currentFiles;
       }
 

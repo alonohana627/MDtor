@@ -5,7 +5,7 @@ desktop app shell with a Vite frontend, TypeScript, React components, a small
 custom Markdown parser, and Shiki-powered code highlighting.
 
 In the future it will be a full-featured Markdown editor with support for CommonMark syntax,
-file system integration, exporting to PDF or one HTML file, projects (based on folder), and more.
+exporting to PDF or one HTML file, and more.
 
 I will use it to write a philosophy book I've been planning for a while, and I hope it can be useful to others as well.
 
@@ -19,8 +19,29 @@ I will use it to write a philosophy book I've been planning for a while, and I h
 - Light and dark mode toggle.
 - Editor-side Markdown syntax highlighting.
 - Preview-side fenced code-block syntax highlighting with Shiki.
+- Folder-based Markdown projects with recursive file discovery.
+- Native folder picking in the Tauri desktop app.
+- Browser folder opening and saving in browsers that support the File System
+  Access API.
+- Markdown file creation, deletion, manual sidebar ordering, and automatic
+  folder rescans while a project is open.
+- Last-opened project folder restore for Tauri and supported browser folder
+  handles.
 - Unit tests for Markdown logic and React components.
 - ESLint and Prettier setup.
+
+## Project Folders
+
+MDtor opens a real folder and works with `.md` and `.markdown` files inside it.
+The sidebar keeps a manually ordered list of discovered Markdown files while the
+app rescans the folder once per second, so files created or removed outside the
+app appear without reopening the project.
+
+In the desktop app, folder access uses Tauri's native folder picker and scoped
+Rust commands. In browser mode, direct local folder editing requires the File
+System Access API. Chrome and Edge support this; Firefox does not currently
+support writable local folder opening from a web app, so Firefox users should use
+the Tauri desktop app for native folder access.
 
 ## Markdown Support
 
