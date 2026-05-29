@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../../../src/components/MarkdownEditor";
 
@@ -37,15 +38,33 @@ describe("MarkdownEditor", () => {
   it("shows dirty state and emits save and direction changes", () => {
     const onSave = vi.fn();
     const onDirectionChange = vi.fn();
-    renderEditor({ isDirty: true, onSave, onDirectionChange });
+    const onCurrentLineChange = vi.fn();
+    renderEditor({
+      isDirty: true,
+      onSave,
+      onDirectionChange,
+      onCurrentLineChange,
+    });
 
     expect(screen.getByLabelText("Unsaved changes")).toHaveTextContent("*");
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     fireEvent.click(screen.getByRole("button", { name: "RTL" }));
+    fireEvent.keyUp(screen.getByLabelText("Markdown editor"));
+    fireEvent.select(screen.getByLabelText("Markdown editor"));
 
     expect(onSave).toHaveBeenCalled();
     expect(onDirectionChange).toHaveBeenCalledWith("rtl");
+    expect(onCurrentLineChange).toHaveBeenCalled();
+  });
+
+  it("switches back to LTR when asked", () => {
+    const onDirectionChange = vi.fn();
+    renderEditor({ direction: "rtl", onDirectionChange });
+
+    fireEvent.click(screen.getByRole("button", { name: "LTR" }));
+
+    expect(onDirectionChange).toHaveBeenCalledWith("ltr");
   });
 
   it("calls onChange with the next editor value", () => {
@@ -88,5 +107,13 @@ describe("MarkdownEditor", () => {
     expect(gutter.scrollTop).toBe(32);
     expect(highlightLayer.scrollTop).toBe(32);
     expect(highlightLayer.scrollLeft).toBe(16);
+  });
+
+  it("exposes the editor textarea through editorRef", () => {
+    const editorRef = createRef<HTMLTextAreaElement>();
+
+    renderEditor({ editorRef });
+
+    expect(editorRef.current).toBe(screen.getByLabelText("Markdown editor"));
   });
 });

@@ -7,6 +7,9 @@ It is not a full Markdown engine. It only understands the features listed in
 such as bold, italic, code, and links is handled separately in
 `renderInlineMarkdown.tsx`.
 
+For the broader application structure, project workflow, Tauri boundary, and
+testing strategy, see [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md).
+
 ## The Big Idea
 
 A parser turns text into structured data.

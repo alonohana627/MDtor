@@ -112,4 +112,98 @@ describe("ProjectSidebar", () => {
 
     expect(onDeleteFile).toHaveBeenCalledWith("one.md");
   });
+
+  it("renders empty and error states", () => {
+    render(
+      <ProjectSidebar
+        files={[]}
+        activeFilePath={null}
+        isDirty={false}
+        projectPath={null}
+        isBusy={false}
+        error="Could not open project"
+        onOpenProject={vi.fn()}
+        onCreateFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onMoveFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Could not open project")).toBeInTheDocument();
+    expect(screen.getByText("No Markdown files")).toBeInTheDocument();
+  });
+
+  it("disables file actions while busy", () => {
+    render(
+      <ProjectSidebar
+        files={[{ relativePath: "one.md" }, { relativePath: "two.md" }]}
+        activeFilePath={null}
+        isDirty={false}
+        projectPath={null}
+        isBusy={true}
+        error={null}
+        onOpenProject={vi.fn()}
+        onCreateFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onMoveFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "New file" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "one.md" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Move two.md up" })).toBeDisabled();
+  });
+
+  it("closes the context menu on Escape", () => {
+    render(
+      <ProjectSidebar
+        files={[{ relativePath: "one.md" }]}
+        activeFilePath={null}
+        isDirty={false}
+        projectPath={null}
+        isBusy={false}
+        error={null}
+        onOpenProject={vi.fn()}
+        onCreateFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onMoveFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "one.md" }));
+
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("closes the context menu on click outside", () => {
+    render(
+      <ProjectSidebar
+        files={[{ relativePath: "one.md" }]}
+        activeFilePath={null}
+        isDirty={false}
+        projectPath={null}
+        isBusy={false}
+        error={null}
+        onOpenProject={vi.fn()}
+        onCreateFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onMoveFile={vi.fn()}
+        onDeleteFile={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "one.md" }));
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
+
+    fireEvent.click(window);
+
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+  });
 });

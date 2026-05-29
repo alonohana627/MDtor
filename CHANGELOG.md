@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
 
 ### Features
 
@@ -9,6 +9,8 @@
 - Added a keyboard quick switcher for Markdown files.
 - Improved editor focus after opening, switching, creating, and deleting files.
 - Simplified the React app shell by extracting project workflow state and helpers out of `App.tsx`.
+- Updated README usage docs and added `ARCHITECTURE.md` for code structure, workflow, persistence, and testing details.
+- Added a local-only `npm run test:coverage` command with V8 coverage reports and global coverage thresholds.
 
 ## 0.1.1
 

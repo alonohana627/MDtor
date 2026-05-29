@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createBrowserProjectFile,
   deleteBrowserProjectFile,
+  openBrowserProjectFolder,
+  readBrowserProjectFile,
+  saveBrowserProjectFile,
+  scanBrowserProjectFolder,
   type BrowserProjectFile,
 } from "../../../src/services/browserProjectFiles";
 
@@ -101,6 +105,75 @@ function asDirectoryHandle(directory: TestDirectoryHandle) {
 }
 
 describe("browserProjectFiles", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("opens a browser folder and collects Markdown files recursively", async () => {
+    const root = new TestDirectoryHandle("Book");
+    const notes = new TestDirectoryHandle("notes");
+    notes.files.set("idea.md", new TestFileHandle("idea.md", "# Idea"));
+    notes.files.set("draft.txt", new TestFileHandle("draft.txt", "ignore"));
+    root.directories.set("notes", notes);
+    root.files.set("readme.markdown", new TestFileHandle("readme.markdown", "# Readme"));
+    vi.stubGlobal(
+      "showDirectoryPicker",
+      vi.fn().mockResolvedValue(asDirectoryHandle(root)),
+    );
+
+    const project = await openBrowserProjectFolder();
+
+    expect(project).toMatchObject({
+      name: "Book",
+      files: [{ relativePath: "notes/idea.md" }, { relativePath: "readme.markdown" }],
+    });
+    expect(project?.fileHandles.has("notes/idea.md")).toBe(true);
+    expect(project?.fileHandles.has("notes/draft.txt")).toBe(false);
+    expect(window.showDirectoryPicker).toHaveBeenCalledWith({
+      id: "mdtor-project-folder",
+      mode: "readwrite",
+    });
+  });
+
+  it("scans existing browser folder handles into sorted Markdown project files", async () => {
+    const root = new TestDirectoryHandle("Book");
+    root.files.set("z.md", new TestFileHandle("z.md"));
+    root.files.set("a.markdown", new TestFileHandle("a.markdown"));
+    root.files.set("ignore.txt", new TestFileHandle("ignore.txt"));
+
+    const project = await scanBrowserProjectFolder(asDirectoryHandle(root));
+
+    expect(project.files).toEqual([
+      { relativePath: "a.markdown" },
+      { relativePath: "z.md" },
+    ]);
+    expect(project.fileHandles.has("a.markdown")).toBe(true);
+    expect(project.fileHandles.has("z.md")).toBe(true);
+  });
+
+  it("reads and saves browser project files through file handles", async () => {
+    const handle = new TestFileHandle("chapter.md", "# Old");
+    const fileHandles = new Map<string, BrowserProjectFile>([
+      [
+        "chapter.md",
+        { kind: "writable", handle: handle as unknown as FileSystemFileHandle },
+      ],
+    ]);
+
+    await expect(readBrowserProjectFile(fileHandles, "chapter.md")).resolves.toBe(
+      "# Old",
+    );
+    await saveBrowserProjectFile(fileHandles, "chapter.md", "# New");
+
+    expect(handle.content).toBe("# New");
+    await expect(readBrowserProjectFile(fileHandles, "missing.md")).rejects.toThrow(
+      "Could not find the selected Markdown file.",
+    );
+    await expect(
+      saveBrowserProjectFile(fileHandles, "missing.md", "# Missing"),
+    ).rejects.toThrow("Could not find the selected Markdown file.");
+  });
+
   it("creates Markdown files in new subdirectories", async () => {
     const root = new TestDirectoryHandle("root");
     const fileHandles = new Map<string, BrowserProjectFile>();
@@ -109,6 +182,25 @@ describe("browserProjectFiles", () => {
 
     expect(root.directories.get("notes")?.files.has("idea.md")).toBe(true);
     expect(fileHandles.has("notes/idea.md")).toBe(true);
+  });
+
+  it("deletes Markdown files and removes their cached file handles", async () => {
+    const root = new TestDirectoryHandle("root");
+    root.files.set("old.md", new TestFileHandle("old.md"));
+    const fileHandles = new Map<string, BrowserProjectFile>([
+      [
+        "old.md",
+        {
+          kind: "writable",
+          handle: root.files.get("old.md") as unknown as FileSystemFileHandle,
+        },
+      ],
+    ]);
+
+    await deleteBrowserProjectFile(asDirectoryHandle(root), fileHandles, "old.md");
+
+    expect(root.files.has("old.md")).toBe(false);
+    expect(fileHandles.has("old.md")).toBe(false);
   });
 
   it("rejects existing files even when they are empty", async () => {
@@ -130,5 +222,13 @@ describe("browserProjectFiles", () => {
     await expect(
       deleteBrowserProjectFile(asDirectoryHandle(root), new Map(), "../escape.md"),
     ).rejects.toThrow("inside the project folder");
+  });
+
+  it("rejects opening folders when the browser picker is unavailable", async () => {
+    vi.stubGlobal("showDirectoryPicker", undefined);
+
+    await expect(openBrowserProjectFolder()).rejects.toThrow(
+      "This browser cannot open local folders",
+    );
   });
 });

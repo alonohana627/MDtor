@@ -1,21 +1,20 @@
 # MDtor
 
-MDtor is a Tauri + React Markdown editor with a live preview. It is built as a
-desktop app shell with a Vite frontend, TypeScript, React components, a small
-custom Markdown parser, and Shiki-powered code highlighting.
+MDtor is a Tauri + React Markdown editor with a live preview and real folder
+editing. It opens a project folder, discovers Markdown files recursively, and
+lets you write, preview, create, reorder, and delete `.md` / `.markdown` files.
 
-In the future it will be a full-featured Markdown editor with support for CommonMark syntax,
-exporting to PDF or one HTML file, and more.
-
-I will use it to write a philosophy book I've been planning for a while, and I hope it can be useful to others as well.
+The app is currently focused on long-form writing workflows: fast file switching,
+line-aware preview highlighting, RTL/LTR direction controls, and persistence for
+the last opened project and active file.
 
 ## Features
 
 - Split-screen Markdown editor and rendered preview.
 - Live preview while typing.
 - Editor line numbers synced with textarea scrolling.
-- Current editor line indicator.
-- Preview block highlighting for the source line currently selected in the editor.
+- Current editor line indicator and preview block highlighting.
+- LTR and RTL document direction controls.
 - Light and dark mode toggle.
 - Editor-side Markdown syntax highlighting.
 - Preview-side fenced code-block syntax highlighting with Shiki.
@@ -23,25 +22,33 @@ I will use it to write a philosophy book I've been planning for a while, and I h
 - Native folder picking in the Tauri desktop app.
 - Browser folder opening and saving in browsers that support the File System
   Access API.
-- Markdown file creation, deletion, manual sidebar ordering, and automatic
-  folder rescans while a project is open.
-- Last-opened project folder restore for Tauri and supported browser folder
-  handles.
-- Unit tests for Markdown logic and React components.
-- ESLint and Prettier setup.
+- Markdown file creation, right-click deletion, manual sidebar ordering, and
+  automatic folder rescans while a project is open.
+- Last-opened project folder and last-active-file restore.
+- Keyboard shortcuts for common project workflows.
 
 ## Project Folders
 
-MDtor opens a real folder and works with `.md` and `.markdown` files inside it.
-The sidebar keeps a manually ordered list of discovered Markdown files while the
-app rescans the folder once per second, so files created or removed outside the
-app appear without reopening the project.
+MDtor opens a real folder and works directly with Markdown files inside it. The
+sidebar keeps a manually ordered list of discovered files while the app rescans
+the folder once per second, so files created or removed outside the app appear
+without reopening the project.
 
 In the desktop app, folder access uses Tauri's native folder picker and scoped
 Rust commands. In browser mode, direct local folder editing requires the File
 System Access API. Chrome and Edge support this; Firefox does not currently
 support writable local folder opening from a web app, so Firefox users should use
 the Tauri desktop app for native folder access.
+
+## Shortcuts
+
+| Shortcut               | Action                                     |
+| ---------------------- | ------------------------------------------ |
+| `Ctrl+S` / `Cmd+S`     | Save the active Markdown file              |
+| `Ctrl+O` / `Cmd+O`     | Open a project folder                      |
+| `Ctrl+N` / `Cmd+N`     | Create a Markdown file in the open project |
+| `Ctrl+P` / `Cmd+P`     | Open the quick file switcher               |
+| `Ctrl+Tab` / `Cmd+Tab` | Switch to the next Markdown file           |
 
 ## Markdown Support
 
@@ -73,20 +80,8 @@ Known limitations:
 - No raw HTML rendering.
 - No full CommonMark compliance.
 
-See [src/markdown/README.md](src/markdown/README.md) for how the parser and
-editor highlighting work.
-
-## Tech Stack
-
-- Tauri 2
-- React 19
-- TypeScript
-- Vite
-- Shiki
-- Vitest
-- React Testing Library
-- ESLint
-- Prettier
+See [src/markdown/README.md](src/markdown/README.md) for parser and editor
+highlighting details.
 
 ## Getting Started
 
@@ -122,118 +117,32 @@ npm run tauri build
 
 ## Scripts
 
-```bash
-npm run dev
-```
+| Command                 | Purpose                                  |
+| ----------------------- | ---------------------------------------- |
+| `npm run dev`           | Start the Vite development server        |
+| `npm run build`         | Type-check and build the frontend        |
+| `npm test`              | Run unit tests                           |
+| `npm run test:coverage` | Run local unit test coverage             |
+| `npm run lint`          | Run ESLint                               |
+| `npm run lint:fix`      | Run ESLint with automatic fixes          |
+| `npm run format`        | Format files with Prettier               |
+| `npm run format:check`  | Check formatting without writing changes |
+| `npm run preview`       | Preview the production Vite build        |
+| `npm run tauri`         | Run the Tauri CLI                        |
 
-Start the Vite development server.
+## Documentation
 
-```bash
-npm run build
-```
-
-Type-check and build the frontend.
-
-```bash
-npm test
-```
-
-Run unit tests.
-
-```bash
-npm run lint
-```
-
-Run ESLint.
-
-```bash
-npm run lint:fix
-```
-
-Run ESLint with automatic fixes.
-
-```bash
-npm run format
-```
-
-Format files with Prettier.
-
-```bash
-npm run format:check
-```
-
-Check formatting without writing changes.
-
-```bash
-npm run preview
-```
-
-Preview the production Vite build.
-
-```bash
-npm run tauri
-```
-
-Run the Tauri CLI.
-
-## Project Structure
-
-```text
-src/
-  App.tsx
-  App.css
-  components/
-    HighlightedCodeBlock/
-    MarkdownBlockView/
-    MarkdownEditor/
-    MarkdownHighlightLayer/
-    MarkdownPreview/
-    MarkdownPreviewPane/
-    ThemeToggle/
-  data/
-    starterMarkdown.ts
-  markdown/
-    parseMarkdown.ts
-    renderInlineMarkdown.tsx
-    highlightMarkdown.ts
-    types.ts
-    README.md
-tests/
-  setup.ts
-  unit/
-    components/
-    markdown/
-src-tauri/
-```
-
-### Important Areas
-
-- `src/components/MarkdownEditor`: the editable Markdown pane, line numbers, and
-  editor syntax-highlight overlay.
-- `src/components/MarkdownPreview`: converts parsed Markdown blocks into the
-  rendered preview.
-- `src/components/HighlightedCodeBlock`: Shiki integration for fenced code
-  blocks.
-- `src/markdown/parseMarkdown.ts`: block-level Markdown parser.
-- `src/markdown/renderInlineMarkdown.tsx`: inline Markdown renderer.
-- `src/markdown/highlightMarkdown.ts`: tokenization for editor-side syntax
-  highlighting.
+- [ARCHITECTURE.md](ARCHITECTURE.md): code structure, frontend/Tauri boundaries,
+  project workflow, persistence, and testing strategy.
+- [src/markdown/README.md](src/markdown/README.md): Markdown parser and editor
+  highlighting internals.
+- [HowToBumpVersion.md](HowToBumpVersion.md): manual version bump checklist.
+- [CHANGELOG.md](CHANGELOG.md): release history.
 
 ## Testing
 
-Unit tests live under `tests/unit`.
-
-Markdown logic tests:
-
-```text
-tests/unit/markdown/
-```
-
-Component tests:
-
-```text
-tests/unit/components/
-```
+Unit tests live under `tests/unit` and cover Markdown parsing/rendering, React
+components, project services, persistence, and project workflow hooks.
 
 Run all tests:
 
@@ -241,31 +150,15 @@ Run all tests:
 npm test
 ```
 
-## Formatting and Linting
-
-Run lint:
+Run local coverage:
 
 ```bash
-npm run lint
+npm run test:coverage
 ```
 
-Fix lint issues where possible:
-
-```bash
-npm run lint:fix
-```
-
-Format files:
-
-```bash
-npm run format
-```
-
-Check formatting:
-
-```bash
-npm run format:check
-```
+Coverage output is for local inspection only. It writes reports to `coverage/`,
+which is ignored by Git and is not part of CI. The local coverage command enforces
+global thresholds of 90% statements, 80% branches, 90% functions, and 90% lines.
 
 ## Notes
 
@@ -273,7 +166,3 @@ Shiki currently loads broad language/theme support, which can produce large buil
 chunks. Vite may warn about chunk size during `npm run build`. That is expected
 for the current implementation and can be optimized later by loading a curated
 language/theme set.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md).
