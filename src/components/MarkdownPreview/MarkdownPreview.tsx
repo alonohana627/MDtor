@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type DocumentDirection, type Theme } from "../../App";
+import { type DocumentDirection, type Theme } from "../../types";
 import { parseMarkdown } from "../../markdown/parseMarkdown";
 import { MarkdownBlockView } from "../MarkdownBlockView";
 import "./MarkdownPreview.css";

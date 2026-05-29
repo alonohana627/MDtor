@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useState } from "react";
 import { type BundledLanguage, codeToTokens } from "shiki";
-import { type Theme } from "../../App";
+import { type Theme } from "../../types";
 
 type HighlightedCodeBlockProps = {
   code: string;

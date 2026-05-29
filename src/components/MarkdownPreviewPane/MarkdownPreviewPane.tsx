@@ -1,4 +1,4 @@
-import { type DocumentDirection, type Theme } from "../../App";
+import { type DocumentDirection, type Theme } from "../../types";
 import { MarkdownPreview } from "../MarkdownPreview";
 
 type MarkdownPreviewPaneProps = {

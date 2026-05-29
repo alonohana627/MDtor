@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Added keyboard shortcuts for project workflows: `Ctrl+S` / `Cmd+S` saves, `Ctrl+O` / `Cmd+O` opens a folder, `Ctrl+N` / `Cmd+N` creates a Markdown file, `Ctrl+P` / `Cmd+P` opens the quick file switcher, and `Ctrl+Tab` / `Cmd+Tab` switches to the next Markdown file.
+- Added last-active-file restore for reopened project folders.
+- Added a keyboard quick switcher for Markdown files.
+- Improved editor focus after opening, switching, creating, and deleting files.
+- Simplified the React app shell by extracting project workflow state and helpers out of `App.tsx`.
+
 ## 0.1.1
 
 ### Features

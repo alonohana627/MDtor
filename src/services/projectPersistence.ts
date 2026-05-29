@@ -1,4 +1,5 @@
 const LAST_TAURI_PROJECT_PATH_KEY = "mdtor:last-tauri-project-path";
+const LAST_ACTIVE_PROJECT_FILE_PREFIX = "mdtor:last-active-project-file:";
 const DB_NAME = "mdtor-project-state";
 const DB_VERSION = 1;
 const STORE_NAME = "project-handles";
@@ -14,6 +15,22 @@ export function loadLastTauriProjectPath() {
 
 export function clearLastTauriProjectPath() {
   window.localStorage.removeItem(LAST_TAURI_PROJECT_PATH_KEY);
+}
+
+function getLastActiveProjectFileKey(projectId: string) {
+  return `${LAST_ACTIVE_PROJECT_FILE_PREFIX}${projectId}`;
+}
+
+export function saveLastActiveProjectFile(projectId: string, relativePath: string) {
+  window.localStorage.setItem(getLastActiveProjectFileKey(projectId), relativePath);
+}
+
+export function loadLastActiveProjectFile(projectId: string) {
+  return window.localStorage.getItem(getLastActiveProjectFileKey(projectId));
+}
+
+export function clearLastActiveProjectFile(projectId: string) {
+  window.localStorage.removeItem(getLastActiveProjectFileKey(projectId));
 }
 
 function openProjectStateDb() {
