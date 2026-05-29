@@ -1,0 +1,168 @@
+.project-sidebar {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 100vh;
+  border-right: 1px solid var(--border-strong);
+  background: var(--sidebar-bg);
+}
+
+.project-sidebar-header {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+}
+
+.project-open-button {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--button-text);
+  background: var(--button-bg);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-sidebar-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.project-open-button:hover {
+  border-color: var(--focus);
+}
+
+.project-open-button:focus-visible,
+.project-file:focus-visible,
+.project-file-order-controls button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.project-path {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-error,
+.project-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.project-error {
+  color: var(--error);
+}
+
+.project-file-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.project-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.project-file-row + .project-file-row {
+  margin-top: 4px;
+}
+
+.project-file {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 8px;
+  color: var(--text);
+  background: transparent;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.project-file-order-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.project-file-order-controls button {
+  width: 24px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--button-text);
+  background: var(--button-bg);
+  cursor: pointer;
+}
+
+.project-file-order-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.project-file:hover {
+  background: var(--sidebar-hover);
+}
+
+.project-file.active {
+  color: var(--text-strong);
+  background: var(--sidebar-active);
+  font-weight: 700;
+}
+
+.project-file:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.project-file-context-menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 120px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 4px;
+  background: var(--sidebar-bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.project-file-context-menu button {
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 8px;
+  color: var(--error);
+  background: transparent;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-file-context-menu button:hover {
+  background: var(--sidebar-hover);
+}
+
+.project-file-context-menu button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

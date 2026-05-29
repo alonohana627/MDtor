@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type Theme } from "../../App";
+import { type DocumentDirection, type Theme } from "../../App";
 import { parseMarkdown } from "../../markdown/parseMarkdown";
 import { MarkdownBlockView } from "../MarkdownBlockView";
 import "./MarkdownPreview.css";
@@ -8,9 +8,15 @@ type MarkdownPreviewProps = {
   markdown: string;
   currentLine: number;
   theme: Theme;
+  direction: DocumentDirection;
 };
 
-export function MarkdownPreview({ markdown, currentLine, theme }: MarkdownPreviewProps) {
+export function MarkdownPreview({
+  markdown,
+  currentLine,
+  theme,
+  direction,
+}: MarkdownPreviewProps) {
   const blocks = useMemo(() => parseMarkdown(markdown), [markdown]);
 
   if (blocks.length === 0) {
@@ -25,6 +31,7 @@ export function MarkdownPreview({ markdown, currentLine, theme }: MarkdownPrevie
           block={block}
           currentLine={currentLine}
           theme={theme}
+          direction={direction}
         />
       ))}
     </>
