@@ -43,14 +43,14 @@ the Tauri desktop app for native folder access.
 
 ## Shortcuts
 
-| Shortcut                                  | Action                                     |
-| ----------------------------------------- | ------------------------------------------ |
-| `Ctrl+S` / `Cmd+S`                        | Save the active Markdown file              |
-| `Ctrl+O` / `Cmd+O`                        | Open a project folder                      |
-| `Ctrl+N` / `Cmd+N`                        | Create a Markdown file in the open project |
-| `Ctrl+P` / `Cmd+P`                        | Open the quick file switcher               |
-| `Ctrl+Tab` / `Cmd+Tab`                    | Switch to the next Markdown file           |
-| `Ctrl+Alt+Right` / `Cmd+Option+Right`     | Browser-safe alternate next-file shortcut  |
+| Shortcut                              | Action                                     |
+| ------------------------------------- | ------------------------------------------ |
+| `Ctrl+S` / `Cmd+S`                    | Save the active Markdown file              |
+| `Ctrl+O` / `Cmd+O`                    | Open a project folder                      |
+| `Ctrl+N` / `Cmd+N`                    | Create a Markdown file in the open project |
+| `Ctrl+P` / `Cmd+P`                    | Open the quick file switcher               |
+| `Ctrl+Tab` / `Cmd+Tab`                | Switch to the next Markdown file           |
+| `Ctrl+Alt+Right` / `Cmd+Option+Right` | Browser-safe alternate next-file shortcut  |
 
 ## Markdown Support
 
