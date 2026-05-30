@@ -2,6 +2,10 @@
 
 ## 0.2.2
 
+- Added writer-focused tools: live document statistics, an outline sidebar, adjustable editor/preview split, Zen Mode, Typewriter Mode, file rename, recent projects, local image preview, and PDF/DOCX/HTML export.
+- Improved outline navigation with an independent outline scrollbar, reliable editor caret placement, preview scrolling to the selected heading, and coupled editor/preview scrolling.
+- Fixed textarea caret placement in the syntax-highlighted Markdown editor.
+- Preserved DOCX links as real Word hyperlink relationships during export.
 - Further split project workspace behavior into action and helper modules and set the local coverage thresholds to 90% across statements, branches, functions, and lines.
 - Split workspace helper behavior into focused core, file-operation, lifecycle, and type modules.
 - Added Markdown link URL allowlisting and a Tauri CSP so unsafe link schemes are not rendered as clickable anchors.

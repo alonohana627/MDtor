@@ -9,6 +9,7 @@ type MarkdownPreviewProps = {
   currentLine: number;
   theme: Theme;
   direction: DocumentDirection;
+  loadImage?: (src: string) => Promise<Blob>;
 };
 
 export function MarkdownPreview({
@@ -16,6 +17,7 @@ export function MarkdownPreview({
   currentLine,
   theme,
   direction,
+  loadImage,
 }: MarkdownPreviewProps) {
   const blocks = useMemo(() => parseMarkdown(markdown), [markdown]);
 
@@ -32,6 +34,7 @@ export function MarkdownPreview({
           currentLine={currentLine}
           theme={theme}
           direction={direction}
+          loadImage={loadImage}
         />
       ))}
     </>

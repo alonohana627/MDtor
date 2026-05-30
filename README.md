@@ -5,8 +5,8 @@ editing. It opens a project folder, discovers Markdown files recursively, and
 lets you write, preview, create, reorder, and delete `.md` / `.markdown` files.
 
 The app is currently focused on long-form writing workflows: fast file switching,
-line-aware preview highlighting, RTL/LTR direction controls, and persistence for
-the last opened project and active file.
+line-aware preview highlighting, outline navigation, export, RTL/LTR direction
+controls, and persistence for recent projects and active files.
 
 ## Features
 
@@ -18,14 +18,21 @@ the last opened project and active file.
 - Light and dark mode toggle.
 - Editor-side Markdown syntax highlighting.
 - Preview-side fenced code-block syntax highlighting with Shiki.
+- Live word count, character count, and reading-time estimate.
+- Live outline sidebar generated from document headings.
+- Adjustable editor/preview split layout.
+- Zen Mode and Typewriter Mode for focused writing.
+- PDF, DOCX, and standalone HTML export.
 - Folder-based Markdown projects with recursive file discovery.
 - Native folder picking in the Tauri desktop app.
 - Browser folder opening and saving in browsers that support the File System
   Access API.
-- Markdown file creation, right-click deletion, manual sidebar ordering, and
-  automatic folder rescans while a project is open.
+- Markdown file creation, rename, right-click deletion, manual sidebar ordering,
+  and automatic folder rescans while a project is open.
+- Local image preview for relative Markdown image references.
 - Active-file recovery when the currently open file is removed outside the app.
-- Last-opened project folder and last-active-file restore.
+- Recent project reopening, last-opened project folder, and last-active-file
+  restore.
 - Keyboard shortcuts for common project workflows.
 
 ## Project Folders
@@ -51,6 +58,7 @@ the Tauri desktop app for native folder access.
 | `Ctrl+P` / `Cmd+P`                    | Open the quick file switcher               |
 | `Ctrl+Tab` / `Cmd+Tab`                | Switch to the next Markdown file           |
 | `Ctrl+Alt+Right` / `Cmd+Option+Right` | Browser-safe alternate next-file shortcut  |
+| `Ctrl+Shift+M` / `Cmd+Shift+M`        | Toggle Zen Mode                            |
 
 ## Markdown Support
 
@@ -72,6 +80,7 @@ Supported inline syntax:
 - Italic: `*text*`
 - Inline code: `` `code` ``
 - Links: `[label](https://example.com)`
+- Images: `![alt](relative/path.png)`
 - Hard line breaks using two trailing spaces before a newline
 
 Link handling:
@@ -83,7 +92,7 @@ Known limitations:
 
 - No nested lists yet.
 - No tables yet.
-- No images yet.
+- Images are previewed for relative local paths inside the open project.
 - No raw HTML rendering.
 - No full CommonMark compliance.
 

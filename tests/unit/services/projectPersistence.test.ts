@@ -4,10 +4,13 @@ import {
   clearLastTauriProjectPath,
   loadLastActiveProjectFile,
   loadLastBrowserDirectoryHandle,
+  loadRecentProjects,
+  removeRecentProject,
   loadLastTauriProjectPath,
   saveLastActiveProjectFile,
   saveLastBrowserDirectoryHandle,
   saveLastTauriProjectPath,
+  saveRecentProject,
 } from "../../../src/services/projectPersistence";
 
 type FakeRequest<T = unknown> = {
@@ -146,6 +149,34 @@ describe("projectPersistence", () => {
 
     expect(loadLastActiveProjectFile("tauri:/notes/book")).toBeNull();
     expect(loadLastActiveProjectFile("browser:book-1")).toBe("notes/idea.md");
+  });
+
+  it("stores recent projects with newest first and removes missing entries", () => {
+    saveRecentProject({ kind: "tauri", id: "/one", label: "/one" });
+    saveRecentProject({ kind: "browser", id: "book-1", label: "Book (browser)" });
+    saveRecentProject({ kind: "tauri", id: "/one", label: "/one renamed" });
+
+    expect(loadRecentProjects()).toEqual([
+      { kind: "tauri", id: "/one", label: "/one renamed" },
+      { kind: "browser", id: "book-1", label: "Book (browser)" },
+    ]);
+
+    expect(removeRecentProject("/one")).toEqual([
+      { kind: "browser", id: "book-1", label: "Book (browser)" },
+    ]);
+  });
+
+  it("ignores invalid recent project storage", () => {
+    window.localStorage.setItem("mdtor:recent-projects", "{");
+
+    expect(loadRecentProjects()).toEqual([]);
+
+    window.localStorage.setItem(
+      "mdtor:recent-projects",
+      JSON.stringify([{ kind: "bad", id: 1, label: null }]),
+    );
+
+    expect(loadRecentProjects()).toEqual([]);
   });
 
   it("stores and restores browser directory handles from IndexedDB", async () => {

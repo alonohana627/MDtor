@@ -52,6 +52,29 @@
   text-underline-offset: 0.15em;
 }
 
+.local-markdown-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.85rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.loading-local-image,
+.missing-local-image {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  color: var(--muted);
+  background: var(--quote-bg);
+  font-size: 0.9em;
+}
+
+.missing-local-image {
+  color: var(--error);
+}
+
 .preview ul,
 .preview ol {
   margin: 0 0 1em;

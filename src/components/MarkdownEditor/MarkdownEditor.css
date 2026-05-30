@@ -147,6 +147,18 @@
   background: var(--selection);
 }
 
+@supports (-webkit-text-fill-color: transparent) {
+  .markdown-textarea {
+    color: var(--editor-text);
+    -webkit-text-fill-color: transparent;
+  }
+
+  .markdown-textarea::selection {
+    color: var(--editor-text);
+    -webkit-text-fill-color: transparent;
+  }
+}
+
 .markdown-textarea:focus {
   box-shadow: inset 0 0 0 2px var(--focus);
 }

@@ -9,10 +9,15 @@ type MarkdownBlockViewProps = {
   currentLine: number;
   theme: Theme;
   direction: DocumentDirection;
+  loadImage?: (src: string) => Promise<Blob>;
 };
 
 function isLineInsideBlock(block: MarkdownBlock, line: number) {
   return line >= block.source.startLine && line <= block.source.endLine;
+}
+
+function sourceLineProps(line: number) {
+  return { "data-source-line": line };
 }
 
 export function MarkdownBlockView({
@@ -20,6 +25,7 @@ export function MarkdownBlockView({
   currentLine,
   theme,
   direction,
+  loadImage,
 }: MarkdownBlockViewProps) {
   const isActiveBlock = isLineInsideBlock(block, currentLine);
   const blockClassName = isActiveBlock ? "active-preview-block" : undefined;
@@ -27,23 +33,35 @@ export function MarkdownBlockView({
   if (block.type === "heading") {
     return createElement(
       `h${block.level}`,
-      { className: blockClassName, dir: direction },
-      renderInlineMarkdown(block.text),
+      {
+        className: blockClassName,
+        dir: direction,
+        ...sourceLineProps(block.source.startLine),
+      },
+      renderInlineMarkdown(block.text, { loadImage }),
     );
   }
 
   if (block.type === "paragraph") {
     return (
-      <p className={blockClassName} dir={direction}>
-        {renderInlineMarkdown(block.text)}
+      <p
+        className={blockClassName}
+        dir={direction}
+        {...sourceLineProps(block.source.startLine)}
+      >
+        {renderInlineMarkdown(block.text, { loadImage })}
       </p>
     );
   }
 
   if (block.type === "blockquote") {
     return (
-      <blockquote className={blockClassName} dir={direction}>
-        {renderInlineMarkdown(block.text)}
+      <blockquote
+        className={blockClassName}
+        dir={direction}
+        {...sourceLineProps(block.source.startLine)}
+      >
+        {renderInlineMarkdown(block.text, { loadImage })}
       </blockquote>
     );
   }
@@ -58,7 +76,7 @@ export function MarkdownBlockView({
             key={index}
             className={item.line === currentLine ? "active-preview-line" : undefined}
           >
-            {renderInlineMarkdown(item.text)}
+            {renderInlineMarkdown(item.text, { loadImage })}
           </li>
         ))}
       </List>
@@ -71,6 +89,7 @@ export function MarkdownBlockView({
       language={block.language}
       isActive={Boolean(blockClassName)}
       theme={theme}
+      sourceLine={block.source.startLine}
     />
   );
 }

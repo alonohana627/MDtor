@@ -25,6 +25,21 @@ export function normalizeNewFilePath(input: string) {
   return /\.(md|markdown)$/i.test(trimmedInput) ? trimmedInput : `${trimmedInput}.md`;
 }
 
+export function normalizeProjectFilePath(input: string) {
+  const normalizedPath = normalizeNewFilePath(input);
+
+  if (
+    !normalizedPath ||
+    normalizedPath
+      .split("/")
+      .some((part) => !part || part === "." || part === "..")
+  ) {
+    return null;
+  }
+
+  return normalizedPath;
+}
+
 export function reconcileProjectFiles(
   currentFiles: ProjectFile[],
   scannedFiles: ProjectFile[],

@@ -10,15 +10,36 @@ type MarkdownEditorProps = {
   isDirty: boolean;
   direction: DocumentDirection;
   isSaveDisabled: boolean;
+  isTypewriterMode: boolean;
   editorRef?: Ref<HTMLTextAreaElement>;
   onChange: (nextValue: string) => void;
   onCurrentLineChange: (line: number) => void;
+  onEditorScroll?: (textarea: HTMLTextAreaElement) => void;
   onSave: () => void;
   onDirectionChange: (direction: DocumentDirection) => void;
 };
 
+const EDITOR_TEXT_DIRECTION = "auto";
+
 function getCurrentLine(value: string, cursorIndex: number) {
   return value.slice(0, cursorIndex).split("\n").length;
+}
+
+function restoreCursorPosition(
+  textarea: HTMLTextAreaElement,
+  selectionStart: number,
+  selectionEnd: number,
+  selectionDirection: "forward" | "backward" | "none",
+) {
+  window.requestAnimationFrame(() => {
+    if (document.activeElement !== textarea) {
+      return;
+    }
+
+    const cursorStart = Math.min(selectionStart, textarea.value.length);
+    const cursorEnd = Math.min(selectionEnd, textarea.value.length);
+    textarea.setSelectionRange(cursorStart, cursorEnd, selectionDirection);
+  });
 }
 
 export function MarkdownEditor({
@@ -28,9 +49,11 @@ export function MarkdownEditor({
   isDirty,
   direction,
   isSaveDisabled,
+  isTypewriterMode,
   editorRef,
   onChange,
   onCurrentLineChange,
+  onEditorScroll,
   onSave,
   onDirectionChange,
 }: MarkdownEditorProps) {
@@ -46,6 +69,20 @@ export function MarkdownEditor({
 
   function updateCurrentLine(textarea: HTMLTextAreaElement) {
     onCurrentLineChange(getCurrentLine(textarea.value, textarea.selectionStart));
+
+    if (isTypewriterMode) {
+      const currentLineIndex = getCurrentLine(textarea.value, textarea.selectionStart) - 1;
+      const lineHeight = Number.parseFloat(
+        window.getComputedStyle(textarea).lineHeight || "24",
+      );
+      const nextScrollTop =
+        currentLineIndex * lineHeight - textarea.clientHeight / 2 + lineHeight;
+
+      textarea.scrollTo({
+        top: Math.max(0, nextScrollTop),
+        behavior: "smooth",
+      });
+    }
   }
 
   function syncLineNumberScroll(textarea: HTMLTextAreaElement) {
@@ -113,18 +150,33 @@ export function MarkdownEditor({
             ref={editorRef}
             className="markdown-textarea"
             aria-label="Markdown editor"
-            dir={direction}
+            data-document-direction={direction}
+            dir={EDITOR_TEXT_DIRECTION}
             wrap="off"
             spellCheck="false"
             value={value}
             onChange={(event) => {
+              const textarea = event.currentTarget;
+              const selectionStart = textarea.selectionStart;
+              const selectionEnd = textarea.selectionEnd;
+              const selectionDirection = textarea.selectionDirection;
+
               onChange(event.currentTarget.value);
-              updateCurrentLine(event.currentTarget);
+              updateCurrentLine(textarea);
+              restoreCursorPosition(
+                textarea,
+                selectionStart,
+                selectionEnd,
+                selectionDirection,
+              );
             }}
             onClick={(event) => updateCurrentLine(event.currentTarget)}
             onKeyUp={(event) => updateCurrentLine(event.currentTarget)}
             onSelect={(event) => updateCurrentLine(event.currentTarget)}
-            onScroll={(event) => syncLineNumberScroll(event.currentTarget)}
+            onScroll={(event) => {
+              syncLineNumberScroll(event.currentTarget);
+              onEditorScroll?.(event.currentTarget);
+            }}
           />
         </div>
       </div>

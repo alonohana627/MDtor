@@ -1,5 +1,6 @@
 import { type MouseEvent, useEffect, useState } from "react";
 import { type ProjectFile } from "../../services/projectFiles";
+import { type RecentProject } from "../../services/projectPersistence";
 import "./ProjectSidebar.css";
 
 type FileContextMenu = {
@@ -13,13 +14,16 @@ type ProjectSidebarProps = {
   activeFilePath: string | null;
   isDirty: boolean;
   projectPath: string | null;
+  recentProjects: RecentProject[];
   isBusy: boolean;
   error: string | null;
   onOpenProject: () => void;
+  onOpenRecentProject: (project: RecentProject) => void;
   onCreateFile: () => void;
   onSelectFile: (relativePath: string) => void;
   onMoveFile: (relativePath: string, direction: "up" | "down") => void;
   onDeleteFile: (relativePath: string) => void;
+  onRenameFile: (relativePath: string) => void;
 };
 
 export function ProjectSidebar({
@@ -27,13 +31,16 @@ export function ProjectSidebar({
   activeFilePath,
   isDirty,
   projectPath,
+  recentProjects,
   isBusy,
   error,
   onOpenProject,
+  onOpenRecentProject,
   onCreateFile,
   onSelectFile,
   onMoveFile,
   onDeleteFile,
+  onRenameFile,
 }: ProjectSidebarProps) {
   const [contextMenu, setContextMenu] = useState<FileContextMenu | null>(null);
 
@@ -96,6 +103,23 @@ export function ProjectSidebar({
 
       {error ? <p className="project-error">{error}</p> : null}
 
+      {recentProjects.length > 0 ? (
+        <section className="recent-projects" aria-label="Recent projects">
+          <h2>Recent</h2>
+          {recentProjects.map((project) => (
+            <button
+              key={`${project.kind}:${project.id}`}
+              type="button"
+              className="recent-project"
+              disabled={isBusy}
+              onClick={() => onOpenRecentProject(project)}
+            >
+              {project.label}
+            </button>
+          ))}
+        </section>
+      ) : null}
+
       <nav className="project-file-list" aria-label="Markdown files">
         {files.length > 0 ? (
           files.map((file, index) => {
@@ -150,6 +174,17 @@ export function ProjectSidebar({
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(event) => event.stopPropagation()}
         >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={isBusy}
+            onClick={() => {
+              onRenameFile(contextMenu.relativePath);
+              setContextMenu(null);
+            }}
+          >
+            Rename
+          </button>
           <button
             type="button"
             role="menuitem"

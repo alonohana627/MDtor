@@ -3,7 +3,9 @@ import {
   createBrowserProjectFile,
   deleteBrowserProjectFile,
   openBrowserProjectFolder,
+  readBrowserProjectAsset,
   readBrowserProjectFile,
+  renameBrowserProjectFile,
   saveBrowserProjectFile,
   scanBrowserProjectFolder,
   type BrowserProjectFile,
@@ -202,6 +204,61 @@ describe("browserProjectFiles", () => {
 
     expect(root.files.has("old.md")).toBe(false);
     expect(fileHandles.has("old.md")).toBe(false);
+  });
+
+  it("renames Markdown files by creating the destination and deleting the source", async () => {
+    const root = new TestDirectoryHandle("root");
+    root.files.set("old.md", new TestFileHandle("old.md", "# Old"));
+    const fileHandles = new Map<string, BrowserProjectFile>([
+      [
+        "old.md",
+        {
+          kind: "writable",
+          handle: root.files.get("old.md") as unknown as FileSystemFileHandle,
+        },
+      ],
+    ]);
+
+    await renameBrowserProjectFile(
+      asDirectoryHandle(root),
+      fileHandles,
+      "old.md",
+      "notes/new.md",
+    );
+
+    expect(root.files.has("old.md")).toBe(false);
+    expect(root.directories.get("notes")?.files.get("new.md")?.content).toBe("# Old");
+    expect(fileHandles.has("old.md")).toBe(false);
+    expect(fileHandles.has("notes/new.md")).toBe(true);
+  });
+
+  it("reads relative local image assets", async () => {
+    const root = new TestDirectoryHandle("root");
+    const notes = new TestDirectoryHandle("notes");
+    const images = new TestDirectoryHandle("images");
+    images.files.set("cover.png", new TestFileHandle("cover.png", "image-bytes"));
+    notes.directories.set("images", images);
+    root.directories.set("notes", notes);
+
+    await expect(
+      readBrowserProjectAsset(
+        asDirectoryHandle(root),
+        "notes/chapter.md",
+        "images/cover.png",
+      ).then((file) => file.text()),
+    ).resolves.toBe("image-bytes");
+  });
+
+  it("rejects unsafe or unsupported image asset paths", async () => {
+    const root = new TestDirectoryHandle("root");
+
+    await expect(
+      readBrowserProjectAsset(asDirectoryHandle(root), "chapter.md", "../cover.png"),
+    ).rejects.toThrow("inside the project folder");
+
+    await expect(
+      readBrowserProjectAsset(asDirectoryHandle(root), "chapter.md", "cover.txt"),
+    ).rejects.toThrow("Only local image files");
   });
 
   it("rejects existing files even when they are empty", async () => {

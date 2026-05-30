@@ -11,6 +11,7 @@ type HighlightedCodeBlockProps = {
   language: string;
   isActive: boolean;
   theme: Theme;
+  sourceLine?: number;
 };
 
 type CodeToken = {
@@ -68,6 +69,7 @@ export function HighlightedCodeBlock({
   language,
   isActive,
   theme,
+  sourceLine,
 }: HighlightedCodeBlockProps) {
   const [lines, setLines] = useState<HighlightedLine[]>(() => createPlainLines(code));
   const [resolvedLanguage, setResolvedLanguage] = useState(language || "text");
@@ -108,7 +110,10 @@ export function HighlightedCodeBlock({
   }, [code, language, theme]);
 
   return (
-    <pre className={isActive ? "active-preview-block" : undefined}>
+    <pre
+      className={isActive ? "active-preview-block" : undefined}
+      data-source-line={sourceLine}
+    >
       {resolvedLanguage !== "text" ? (
         <span className="code-language-label">{resolvedLanguage}</span>
       ) : null}
