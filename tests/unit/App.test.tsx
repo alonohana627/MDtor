@@ -83,7 +83,13 @@ describe("App", () => {
     render(<App />);
 
     const themeButton = screen.getByRole("button", { name: "Switch to dark mode" });
+    expect(themeButton).toHaveTextContent("D");
+
     fireEvent.click(themeButton);
+    expect(
+      screen.getByRole("button", { name: "Switch to light mode" }),
+    ).toHaveTextContent("L");
+
     fireEvent.click(screen.getByRole("button", { name: "Switch to light mode" }));
 
     expect(
@@ -218,8 +224,7 @@ describe("App", () => {
     expect(window.localStorage.getItem("mdtor:editor-preview-split")).toBe("70");
   });
 
-  it("keeps editor and preview scroll positions coupled", () => {
-    vi.useFakeTimers();
+  it("keeps editor and preview scroll positions independent by default", () => {
     useProjectWorkspaceMock.mockReturnValue(
       createWorkspace({
         markdown: "# One\n\nText\n\n## Two\n\nMore",
@@ -227,6 +232,12 @@ describe("App", () => {
     );
 
     render(<App />);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
 
     const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
     const preview = document.querySelector(".preview") as HTMLElement;
@@ -243,23 +254,73 @@ describe("App", () => {
 
     fireEvent.scroll(editor);
 
-    expect(preview.scrollTop).toBe(500);
+    expect(preview.scrollTop).toBe(0);
+  });
 
-    preview.scrollTop = 900;
+  it("couples editor and preview scroll positions when sync is enabled", () => {
+    useProjectWorkspaceMock.mockReturnValue(
+      createWorkspace({
+        markdown: "# One\n\nText\n\n## Two\n\nMore",
+      }),
+    );
+
+    render(<App />);
+
+    const syncButton = screen.getByRole("button", {
+      name: "Toggle editor and preview scroll sync",
+    });
+    fireEvent.click(syncButton);
+
+    expect(syncButton).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("mdtor:editor-preview-scroll-sync")).toBe("true");
+
+    const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
+    const preview = document.querySelector(".preview") as HTMLElement;
+    Object.defineProperties(editor, {
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 1000 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    Object.defineProperties(preview, {
+      clientHeight: { configurable: true, value: 1000 },
+      scrollHeight: { configurable: true, value: 2000 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+
+    editor.scrollTop = 250;
+    fireEvent.scroll(editor);
+
+    expect(preview.scrollTop).toBe(250);
+
+    preview.scrollTop = 400;
     fireEvent.scroll(preview);
-    expect(editor.scrollTop).toBe(250);
 
-    vi.advanceTimersByTime(120);
-    preview.scrollTop = 750;
-    fireEvent.scroll(preview);
+    expect(editor.scrollTop).toBe(400);
+  });
 
-    expect(editor.scrollTop).toBe(375);
+  it("uses persisted scroll sync preference", () => {
+    window.localStorage.setItem("mdtor:editor-preview-scroll-sync", "true");
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    render(<App />);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("does not force scroll coupling when the target cannot scroll", () => {
     useProjectWorkspaceMock.mockReturnValue(createWorkspace());
 
     render(<App />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    );
 
     const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
     const preview = document.querySelector(".preview") as HTMLElement;

@@ -1,12 +1,12 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, bench, describe, vi } from "vitest";
-import { MarkdownEditor } from "../../src/components/MarkdownEditor";
+import { getCurrentLine, MarkdownEditor } from "../../src/components/MarkdownEditor";
 import { makeMarkdownDocument } from "./fixtures";
 
 vi.mock("../../src/components/MarkdownHighlightLayer", () => ({
-  MarkdownHighlightLayer: vi.fn(({ markdown }: { markdown: string }) => (
-    <pre data-testid="markdown-highlight-layer">{markdown}</pre>
+  MarkdownHighlightLayer: vi.fn(() => (
+    <pre data-testid="markdown-highlight-layer">highlight</pre>
   )),
 }));
 
@@ -45,11 +45,6 @@ function renderMarkdownEditor(value: string) {
   });
 }
 
-function getCurrentLine(value: string, position: number) {
-  const safePosition = Math.max(0, Math.min(position, value.length));
-  return value.slice(0, safePosition).split("\n").length;
-}
-
 afterEach(() => {
   for (const root of roots) {
     root.unmount();
@@ -86,8 +81,7 @@ describe("getCurrentLine", () => {
     getCurrentLine(large, Math.floor(large.length / 2));
   });
 
-  //   Currently crash. TODO: fix.
-  //   bench("get current line near end", () => {
-  //     getCurrentLine(large, large.length-1);
-  //   });
+  bench("get current line near end", () => {
+    getCurrentLine(large, large.length - 1);
+  });
 });

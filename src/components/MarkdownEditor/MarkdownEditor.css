@@ -84,6 +84,9 @@
   outline: 0;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: var(--editor-font-size);
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-weight: 400;
   line-height: var(--editor-line-height);
   tab-size: 2;
   white-space: pre;
@@ -129,13 +132,12 @@
   width: 100%;
   caret-color: var(--editor-text);
   color: transparent;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--editor-line-height) - 1px),
-    var(--editor-line) calc(var(--editor-line-height) - 1px),
-    var(--editor-line) var(--editor-line-height)
-  );
+  background-color: transparent;
+  background-image: var(--editor-line-tile);
+  background-attachment: local;
+  background-position: left top;
+  background-repeat: repeat-y;
+  background-size: 100% var(--editor-line-height);
   background-origin: content-box;
   background-clip: content-box;
   overflow: auto;
@@ -163,29 +165,43 @@
   box-shadow: inset 0 0 0 2px var(--focus);
 }
 
+.highlight-virtual-spacer {
+  position: relative;
+  display: block;
+  min-width: max-content;
+  min-height: var(--highlight-content-height);
+}
+
+.highlight-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  min-width: max-content;
+  transform: translateY(var(--highlight-window-offset));
+}
+
 .highlight-line {
-  display: inline;
+  display: block;
+  height: var(--editor-line-height);
+  min-height: var(--editor-line-height);
 }
 
 .md-token-heading-marker {
   color: var(--token-heading-marker);
-  font-weight: 700;
 }
 
 .md-token-heading-text {
   color: var(--token-heading-text);
-  font-weight: 700;
 }
 
 .md-token-list-marker {
   color: var(--token-list-marker);
-  font-weight: 700;
 }
 
 .md-token-quote-marker,
 .md-token-quote-text {
   color: var(--token-quote);
-  font-style: italic;
 }
 
 .md-token-code-fence,
@@ -195,18 +211,12 @@
   color: var(--token-code);
 }
 
-.md-token-code-language {
-  font-weight: 700;
-}
-
 .md-token-strong {
   color: var(--token-strong);
-  font-weight: 700;
 }
 
 .md-token-emphasis {
   color: var(--token-emphasis);
-  font-style: italic;
 }
 
 .md-token-link-text {

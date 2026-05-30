@@ -79,6 +79,12 @@ Generate a live navigation outline from document headings.
 - Update automatically while editing.
 - Clicking an item jumps to the corresponding section.
 - Highlight the currently visible section.
+- Keep the outline scroll independent from the coupled editor/preview scroll.
+- Keep editor and preview scrolling independent by default, with a visible
+  toggle for users who want coupled scrolling.
+- When coupled scrolling is enabled, preserve the user's native scroll speed by
+  syncing scroll deltas rather than mapping by top/bottom ratio.
+- Keep editor and preview jumping together after outline clicks.
 
 ## User Value
 
@@ -202,11 +208,38 @@ Keep the active writing line vertically centered within the editor.
 
 - Follow cursor movement.
 - Smooth scrolling behavior.
+- Avoid queued smooth-scroll animations in large documents.
 - Toggle independently from Zen Mode.
 
 ## User Value
 
 Creates a focused writing experience for long-form content.
+
+# Large Document Editing
+
+## Description
+
+Keep the basic writing loop responsive in long Markdown files.
+
+## Requirements
+
+- Typing, deleting, scrolling, and cursor movement should stay responsive in
+  documents with hundreds or thousands of lines.
+- Preview rendering, outline updates, statistics, line numbers, syntax
+  highlighting, and editor overlays must not block text input.
+- Editor-side highlighting should avoid rendering full-document overlay DOM for
+  large documents.
+- Cursor-line tracking should avoid expensive string allocations while editing.
+- The blinking textarea cursor should align with the visible highlighted text;
+  editor syntax tokens should not change font metrics.
+- Text selection should remain native and should not drive full preview or
+  outline rerenders.
+- Add regression tests and targeted benchmarks for large-document editor paths.
+
+## User Value
+
+Large articles, essays, documentation, and book chapters remain editable without
+the app freezing or the cursor becoming unreliable.
 
 # Success Criteria
 
@@ -220,5 +253,7 @@ A user should be able to:
 - Rename files without leaving the editor.
 - Monitor writing progress through live statistics.
 - Export documents to PDF, DOCX, and HTML.
+- Edit large Markdown documents without cursor lag, freezes, or full-overlay
+  rendering stalls.
 
 The release should make MDtor feel like a dedicated writing application rather than a Markdown demonstration editor.

@@ -25,14 +25,7 @@ describe("HighlightedCodeBlock", () => {
   it("renders plain code immediately before async highlighting completes", () => {
     highlightCodeToTokensMock.mockReturnValue(new Promise(() => undefined));
 
-    render(
-      <HighlightedCodeBlock
-        code="const value = 1;"
-        language="ts"
-        isActive={false}
-        theme="light"
-      />,
-    );
+    render(<HighlightedCodeBlock code="const value = 1;" language="ts" theme="light" />);
 
     expect(screen.getByText("const value = 1;")).toBeInTheDocument();
     expect(screen.getByText("typescript")).toBeInTheDocument();
@@ -52,8 +45,8 @@ describe("HighlightedCodeBlock", () => {
       <HighlightedCodeBlock
         code="const value = 1;"
         language="ts"
-        isActive
         theme="dark"
+        blockIndex={4}
       />,
     );
 
@@ -65,7 +58,10 @@ describe("HighlightedCodeBlock", () => {
       );
     });
 
-    expect(screen.getByText("const").closest("pre")).toHaveClass("active-preview-block");
+    expect(screen.getByText("const").closest("pre")).toHaveAttribute(
+      "data-block-index",
+      "4",
+    );
     expect(screen.getByText("const")).toHaveStyle({
       color: "#ff0000",
       fontWeight: "700",
@@ -77,14 +73,7 @@ describe("HighlightedCodeBlock", () => {
       tokens: [[{ content: "const" }]],
     });
 
-    render(
-      <HighlightedCodeBlock
-        code="const value = 1;"
-        language="ts"
-        isActive={false}
-        theme="light"
-      />,
-    );
+    render(<HighlightedCodeBlock code="const value = 1;" language="ts" theme="light" />);
 
     await waitFor(() => {
       expect(highlightCodeToTokensMock).toHaveBeenCalledWith(
@@ -98,14 +87,7 @@ describe("HighlightedCodeBlock", () => {
   it("falls back to plain text when highlighting fails", async () => {
     highlightCodeToTokensMock.mockRejectedValue(new Error("unsupported language"));
 
-    render(
-      <HighlightedCodeBlock
-        code="not highlighted"
-        language="ts"
-        isActive={false}
-        theme="light"
-      />,
-    );
+    render(<HighlightedCodeBlock code="not highlighted" language="ts" theme="light" />);
 
     await waitFor(() => {
       expect(highlightCodeToTokensMock).toHaveBeenCalled();
@@ -120,7 +102,6 @@ describe("HighlightedCodeBlock", () => {
       <HighlightedCodeBlock
         code="not highlighted"
         language="unknownlang"
-        isActive={false}
         theme="light"
       />,
     );
@@ -146,12 +127,7 @@ describe("HighlightedCodeBlock", () => {
     );
 
     const { container, unmount } = render(
-      <HighlightedCodeBlock
-        code={"first\n\nthird"}
-        language="ts"
-        isActive={false}
-        theme="light"
-      />,
+      <HighlightedCodeBlock code={"first\n\nthird"} language="ts" theme="light" />,
     );
 
     await act(async () => {

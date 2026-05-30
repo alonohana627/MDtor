@@ -18,7 +18,9 @@ React UI
 
 - `src/App.tsx`: application shell. It wires theme/direction state, writer
   toolbar controls, export actions, split layout, outline navigation, and
-  workspace state into the sidebar, editor, and preview panes.
+  workspace state into the sidebar, editor, and preview panes. Preview,
+  outline, and document-stat rendering consume deferred Markdown so normal
+  typing stays on the fastest path.
 - `src/components/`: presentational React components for the editor, preview,
   sidebar, theme toggle, code blocks, and Markdown block rendering.
 - `src/hooks/`: workflow hooks that coordinate project state, polling, keyboard
@@ -113,6 +115,7 @@ and deletion.
 - last active file per project in `localStorage`
 - recent projects in `localStorage`
 - adjustable split layout in `localStorage`
+- editor/preview scroll-sync preference in `localStorage`
 - last browser directory handle and generated browser project id in IndexedDB
   when the browser allows it
 
@@ -136,6 +139,13 @@ markdown string
 Inline Markdown rendering happens after block parsing. Editor highlighting uses a
 separate tokenization path because the editor remains a native `<textarea>` for
 selection, typing, paste, undo, and keyboard behavior.
+The app parses deferred Markdown into `MarkdownBlock[]` once for the preview and
+outline instead of reparsing independently. The editor highlight layer builds a
+line-start index for the current document and renders only the visible line
+window, while cursor-line tracking uses that index for binary-search lookup.
+Preview active-line highlighting is applied as DOM class updates over memoized
+rendered content, so cursor movement and text selection do not re-render every
+preview block in large documents.
 
 Inline links are allowlisted before rendering. Only `http:`, `https:`, and
 `mailto:` targets become anchors; unsupported schemes render as inert text.
@@ -154,7 +164,7 @@ See [src/markdown/README.md](src/markdown/README.md) for the parser details.
 
 ## Testing Strategy
 
-Tests live in `tests/unit`.
+Tests live in `tests/unit`, `tests/performance`, and `tests/bench`.
 
 - `tests/unit/markdown/`: parser, inline renderer, and editor highlighting logic.
 - `tests/unit/components/`: React component rendering and interactions.
@@ -163,6 +173,10 @@ Tests live in `tests/unit`.
 - `tests/unit/project/`: pure project helpers.
 - `tests/unit/hooks/`: project polling, keyboard shortcuts, and workspace
   workflows.
+- `tests/performance/`: local performance regression tests for large Markdown
+  parsing and editor responsiveness.
+- `tests/bench/`: local Vitest benchmarks for editor, preview, Markdown,
+  highlighter, workspace, and sidebar hot paths.
 
 Tauri command wrappers are tested by mocking `invoke`. Browser file access is
 tested with in-memory directory/file handle fakes. Workspace behavior is tested

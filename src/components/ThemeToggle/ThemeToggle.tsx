@@ -15,7 +15,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       aria-label={`Switch to ${nextTheme} mode`}
       onClick={onToggle}
     >
-      {theme === "light" ? "Dark" : "Light"}
+      {theme === "light" ? "D" : "L"}
     </button>
   );
 }

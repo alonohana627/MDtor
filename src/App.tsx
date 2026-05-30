@@ -2,24 +2,27 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   useEffect,
+  useDeferredValue,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { DocumentOutline } from "./components/DocumentOutline";
-import { MarkdownEditor } from "./components/MarkdownEditor";
+import { getLineStartOffset, MarkdownEditor } from "./components/MarkdownEditor";
 import { MarkdownPreviewPane } from "./components/MarkdownPreviewPane";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useProjectWorkspace } from "./hooks/useProjectWorkspace";
 import { getDocumentStats } from "./markdown/documentStats";
-import { getMarkdownOutline } from "./markdown/outline";
+import { getMarkdownOutlineFromBlocks } from "./markdown/outline";
+import { parseMarkdown } from "./markdown/parseMarkdown";
 import { getProjectLabel } from "./project/projectUtils";
 import { exportMarkdownDocument, type ExportFormat } from "./services/documentExport";
 import { type DocumentDirection, type Theme } from "./types";
 import "./App.css";
 
 const SPLIT_STORAGE_KEY = "mdtor:editor-preview-split";
+const SCROLL_SYNC_STORAGE_KEY = "mdtor:editor-preview-scroll-sync";
 
 function App() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -33,16 +36,26 @@ function App() {
   });
   const [isZenMode, setIsZenMode] = useState(false);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
+  const [isScrollSyncEnabled, setIsScrollSyncEnabled] = useState(
+    () => window.localStorage.getItem(SCROLL_SYNC_STORAGE_KEY) === "true",
+  );
   const [exportError, setExportError] = useState<string | null>(null);
   const previewRef = useRef<HTMLElement>(null);
-  const scrollSyncSourceRef = useRef<"editor" | "preview" | null>(null);
-  const scrollSyncReleaseTimerRef = useRef<number | null>(null);
+  const scrollPositionsRef = useRef<Record<"editor" | "preview", number>>({
+    editor: 0,
+    preview: 0,
+  });
   const workspace = useProjectWorkspace();
-  const outline = useMemo(
-    () => getMarkdownOutline(workspace.markdown),
-    [workspace.markdown],
+  const deferredMarkdown = useDeferredValue(workspace.markdown);
+  const previewBlocks = useMemo(
+    () => parseMarkdown(deferredMarkdown),
+    [deferredMarkdown],
   );
-  const stats = useMemo(() => getDocumentStats(workspace.markdown), [workspace.markdown]);
+  const outline = useMemo(
+    () => getMarkdownOutlineFromBlocks(previewBlocks),
+    [previewBlocks],
+  );
+  const stats = useMemo(() => getDocumentStats(deferredMarkdown), [deferredMarkdown]);
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
@@ -50,10 +63,7 @@ function App() {
 
   function jumpToLine(line: number) {
     const editor = workspace.editorRef.current;
-    const lines = workspace.markdown.split("\n");
-    const selectionStart = lines
-      .slice(0, Math.max(0, line - 1))
-      .reduce((offset, currentLine) => offset + currentLine.length + 1, 0);
+    const selectionStart = getLineStartOffset(workspace.markdown, line);
 
     workspace.setCurrentLine(line);
 
@@ -74,10 +84,30 @@ function App() {
     }
   }
 
-  function getScrollRatio(element: HTMLElement) {
-    const scrollableHeight = element.scrollHeight - element.clientHeight;
+  function rememberScrollPosition(
+    paneName: "editor" | "preview",
+    element: HTMLElement | null,
+  ) {
+    if (element) {
+      scrollPositionsRef.current[paneName] = element.scrollTop;
+    }
+  }
 
-    return scrollableHeight > 0 ? element.scrollTop / scrollableHeight : 0;
+  function captureScrollPositions() {
+    rememberScrollPosition("editor", workspace.editorRef.current);
+    rememberScrollPosition("preview", previewRef.current);
+  }
+
+  function toggleScrollSync() {
+    const nextValue = !isScrollSyncEnabled;
+
+    window.localStorage.setItem(SCROLL_SYNC_STORAGE_KEY, String(nextValue));
+
+    if (nextValue) {
+      captureScrollPositions();
+    }
+
+    setIsScrollSyncEnabled(nextValue);
   }
 
   function syncScrollPosition(
@@ -85,31 +115,29 @@ function App() {
     source: HTMLElement,
     target: HTMLElement | null,
   ) {
-    if (!target) {
+    const previousSourceScrollTop = scrollPositionsRef.current[sourceName];
+    const nextSourceScrollTop = source.scrollTop;
+    const scrollDelta = nextSourceScrollTop - previousSourceScrollTop;
+
+    scrollPositionsRef.current[sourceName] = nextSourceScrollTop;
+
+    if (!isScrollSyncEnabled) {
       return;
     }
 
-    if (scrollSyncSourceRef.current && scrollSyncSourceRef.current !== sourceName) {
+    if (!target) {
       return;
     }
 
     const targetScrollableHeight = target.scrollHeight - target.clientHeight;
 
-    if (targetScrollableHeight <= 0) {
+    if (targetScrollableHeight <= 0 || scrollDelta === 0) {
       return;
     }
 
-    scrollSyncSourceRef.current = sourceName;
-    target.scrollTop = getScrollRatio(source) * targetScrollableHeight;
-
-    if (scrollSyncReleaseTimerRef.current) {
-      window.clearTimeout(scrollSyncReleaseTimerRef.current);
-    }
-
-    scrollSyncReleaseTimerRef.current = window.setTimeout(() => {
-      scrollSyncSourceRef.current = null;
-      scrollSyncReleaseTimerRef.current = null;
-    }, 120);
+    target.scrollTop += scrollDelta;
+    scrollPositionsRef.current[sourceName === "editor" ? "preview" : "editor"] =
+      target.scrollTop;
   }
 
   function handleEditorScroll(textarea: HTMLTextAreaElement) {
@@ -186,7 +214,20 @@ function App() {
       data-theme={theme}
       data-zen={isZenMode ? "true" : "false"}
     >
-      {!isZenMode ? <ThemeToggle theme={theme} onToggle={toggleTheme} /> : null}
+      {!isZenMode ? (
+        <div className="top-controls" aria-label="Display controls">
+          <button
+            type="button"
+            className="scroll-sync-toggle"
+            aria-label="Toggle editor and preview scroll sync"
+            aria-pressed={isScrollSyncEnabled}
+            onClick={toggleScrollSync}
+          >
+            Sync
+          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+      ) : null}
       {!isZenMode ? (
         <div className="writer-toolbar" aria-label="Writer tools">
           <div className="writer-stat" aria-label="Document statistics">
@@ -264,7 +305,8 @@ function App() {
         />
         <MarkdownPreviewPane
           previewRef={previewRef}
-          markdown={workspace.markdown}
+          markdown={deferredMarkdown}
+          blocks={previewBlocks}
           currentLine={workspace.currentLine}
           theme={theme}
           direction={direction}

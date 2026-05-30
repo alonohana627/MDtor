@@ -13,4 +13,36 @@ describe("MarkdownHighlightLayer", () => {
     expect(screen.getByText("Title")).toHaveClass("md-token-heading-text");
     expect(ref.current?.querySelector(".md-token-list-marker")).toHaveTextContent("-");
   });
+
+  it("virtualizes large documents to the visible line window", () => {
+    const markdown = Array.from(
+      { length: 1000 },
+      (_, index) => `# Heading ${index + 1}`,
+    ).join("\n");
+    const { container } = render(
+      <MarkdownHighlightLayer markdown={markdown} scrollTop={0} viewportHeight={240} />,
+    );
+
+    expect(container.querySelectorAll(".highlight-line").length).toBeLessThan(60);
+    expect(screen.getByText("Heading 1")).toBeInTheDocument();
+    expect(screen.queryByText("Heading 500")).not.toBeInTheDocument();
+  });
+
+  it("moves the rendered window when the editor scrolls", () => {
+    const markdown = Array.from(
+      { length: 1000 },
+      (_, index) => `# Heading ${index + 1}`,
+    ).join("\n");
+
+    render(
+      <MarkdownHighlightLayer
+        markdown={markdown}
+        scrollTop={500 * 24}
+        viewportHeight={240}
+      />,
+    );
+
+    expect(screen.queryByText("Heading 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Heading 501")).toBeInTheDocument();
+  });
 });

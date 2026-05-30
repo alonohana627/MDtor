@@ -7,7 +7,7 @@ describe("ThemeToggle", () => {
     render(<ThemeToggle theme="light" onToggle={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Switch to dark mode" })).toHaveTextContent(
-      "Dark",
+      "D",
     );
   });
 
@@ -16,7 +16,7 @@ describe("ThemeToggle", () => {
 
     expect(
       screen.getByRole("button", { name: "Switch to light mode" }),
-    ).toHaveTextContent("Light");
+    ).toHaveTextContent("L");
   });
 
   it("calls onToggle when clicked", () => {

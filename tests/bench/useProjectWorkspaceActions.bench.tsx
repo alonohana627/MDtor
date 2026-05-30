@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
+import { useLayoutEffect } from "react";
 import { afterEach, bench, describe, vi } from "vitest";
 import { useProjectWorkspaceActions } from "../../src/hooks/useProjectWorkspaceActions";
 import type { ProjectSource } from "../../src/project/projectTypes";
@@ -54,6 +55,7 @@ const browserProjectSource: ProjectSource = {
   name: "project",
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 function ActionsHarness({
   actionRef,
   projectSource = browserProjectSource,
@@ -63,7 +65,7 @@ function ActionsHarness({
   projectSource?: ProjectSource | null;
   isDirty?: boolean;
 }) {
-  actionRef.current = useProjectWorkspaceActions({
+  const actions = useProjectWorkspaceActions({
     markdown: "# Current document",
     projectSource,
     isDirty,
@@ -88,6 +90,10 @@ function ActionsHarness({
     setSavedMarkdown: vi.fn(),
     setRecentProjects: vi.fn(),
   });
+
+  useLayoutEffect(() => {
+    actionRef.current = actions;
+  }, [actionRef, actions]);
 
   return null;
 }

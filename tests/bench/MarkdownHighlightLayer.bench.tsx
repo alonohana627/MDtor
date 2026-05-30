@@ -2,12 +2,17 @@ import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, bench, describe } from "vitest";
 import { MarkdownHighlightLayer } from "../../src/components/MarkdownHighlightLayer";
-import { highlightMarkdown } from "../../src/markdown/highlightMarkdown";
+import {
+  createMarkdownHighlightIndex,
+  highlightMarkdown,
+  highlightMarkdownRange,
+} from "../../src/markdown/highlightMarkdown";
 import { makeMarkdownDocument } from "./fixtures";
 
 const small = makeMarkdownDocument(10);
 const medium = makeMarkdownDocument(250);
 const large = makeMarkdownDocument(1000);
+const largeIndex = createMarkdownHighlightIndex(large);
 
 let roots: Root[] = [];
 let containers: HTMLDivElement[] = [];
@@ -49,6 +54,14 @@ describe("highlightMarkdown", () => {
 
   bench("highlight large markdown", () => {
     highlightMarkdown(large);
+  });
+
+  bench("index large markdown", () => {
+    createMarkdownHighlightIndex(large);
+  });
+
+  bench("highlight large visible range", () => {
+    highlightMarkdownRange(largeIndex, 500, 560);
   });
 });
 

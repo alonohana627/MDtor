@@ -10,7 +10,7 @@ describe("MarkdownPreview", () => {
   });
 
   it("renders parsed markdown blocks and highlights the active source line", () => {
-    render(
+    const { rerender } = render(
       <MarkdownPreview
         markdown={"# Title\n\n- one\n- two\n\n> quote"}
         currentLine={4}
@@ -23,6 +23,34 @@ describe("MarkdownPreview", () => {
     expect(screen.getByText("one")).not.toHaveClass("active-preview-line");
     expect(screen.getByText("two")).toHaveClass("active-preview-line");
     expect(screen.getByText("quote")).toBeInTheDocument();
+
+    rerender(
+      <MarkdownPreview
+        markdown={"# Title\n\n- one\n- two\n\n> quote"}
+        currentLine={6}
+        theme="light"
+        direction="ltr"
+      />,
+    );
+
+    expect(screen.getByText("two")).not.toHaveClass("active-preview-line");
+    expect(screen.getByText("quote")).toHaveClass("active-preview-block");
+  });
+
+  it("does not mark a preview block when the current line is outside parsed blocks", () => {
+    render(
+      <MarkdownPreview
+        markdown={"# Title\n\nBody"}
+        currentLine={99}
+        theme="light"
+        direction="ltr"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Title" })).not.toHaveClass(
+      "active-preview-block",
+    );
+    expect(screen.getByText("Body")).not.toHaveClass("active-preview-block");
   });
 
   it("marks code blocks as left-to-right when the document is right-to-left", () => {

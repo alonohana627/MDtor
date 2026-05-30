@@ -8,19 +8,13 @@ vi.mock("../../src/components/HighlightedCodeBlock", () => ({
   HighlightedCodeBlock: ({
     code,
     language,
-    isActive,
     sourceLine,
   }: {
     code: string;
     language: string;
-    isActive: boolean;
     sourceLine?: number;
   }) => (
-    <pre
-      className={isActive ? "active-preview-block" : undefined}
-      data-language={language}
-      data-source-line={sourceLine}
-    >
+    <pre data-language={language} data-source-line={sourceLine}>
       <code>{code}</code>
     </pre>
   ),
@@ -96,7 +90,7 @@ const codeBlock: MarkdownBlock = {
 let roots: Root[] = [];
 let containers: HTMLDivElement[] = [];
 
-function renderBlock(block: MarkdownBlock, currentLine = 1) {
+function renderBlock(block: MarkdownBlock) {
   const container = document.createElement("div");
   document.body.appendChild(container);
 
@@ -106,12 +100,7 @@ function renderBlock(block: MarkdownBlock, currentLine = 1) {
 
   flushSync(() => {
     root.render(
-      <MarkdownBlockView
-        block={block}
-        currentLine={currentLine}
-        theme="light"
-        direction="ltr"
-      />,
+      <MarkdownBlockView block={block} blockIndex={0} theme="light" direction="ltr" />,
     );
   });
 }
@@ -143,11 +132,11 @@ describe("MarkdownBlockView render", () => {
   });
 
   bench("render 50-item unordered list block", () => {
-    renderBlock(unorderedListBlock, 25);
+    renderBlock(unorderedListBlock);
   });
 
   bench("render 50-item ordered list block", () => {
-    renderBlock(orderedListBlock, 25);
+    renderBlock(orderedListBlock);
   });
 
   bench("render 100-line code block", () => {

@@ -51,6 +51,7 @@ vi.mock("../../src/hooks/useProjectWorkspaceHelpers", () => ({
   restoreWorkspaceProject: vi.fn(async () => undefined),
 }));
 
+// eslint-disable-next-line react-refresh/only-export-components
 function ProjectWorkspaceHarness() {
   useProjectWorkspace();
 

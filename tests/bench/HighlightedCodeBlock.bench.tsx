@@ -44,7 +44,6 @@ function renderCodeBlock(code: string, language: string) {
       <HighlightedCodeBlock
         code={code}
         language={language}
-        isActive={false}
         theme="light"
         sourceLine={1}
       />,

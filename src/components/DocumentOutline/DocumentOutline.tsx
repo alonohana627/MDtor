@@ -1,3 +1,4 @@
+import { memo, type MouseEvent } from "react";
 import { type OutlineItem, getActiveOutlineItem } from "../../markdown/outline";
 import "./DocumentOutline.css";
 
@@ -7,28 +8,56 @@ type DocumentOutlineProps = {
   onSelectLine: (line: number) => void;
 };
 
-export function DocumentOutline({
+type OutlineButtonProps = {
+  item: OutlineItem;
+  isActive: boolean;
+};
+
+const OutlineButton = memo(function OutlineButton({
+  item,
+  isActive,
+}: OutlineButtonProps) {
+  return (
+    <button
+      type="button"
+      className={isActive ? "active" : undefined}
+      data-line={item.line}
+      style={{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }}
+    >
+      {item.text}
+    </button>
+  );
+});
+
+export const DocumentOutline = memo(function DocumentOutline({
   items,
   currentLine,
   onSelectLine,
 }: DocumentOutlineProps) {
   const activeItem = getActiveOutlineItem(items, currentLine);
 
+  function handleOutlineClick(event: MouseEvent<HTMLElement>) {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "button[data-line]",
+    );
+    const line = Number(button?.dataset.line);
+
+    if (Number.isFinite(line)) {
+      onSelectLine(line);
+    }
+  }
+
   return (
     <aside className="document-outline" aria-label="Document outline">
       <h2>Outline</h2>
       {items.length > 0 ? (
-        <nav>
+        <nav onClick={handleOutlineClick}>
           {items.map((item) => (
-            <button
+            <OutlineButton
               key={item.id}
-              type="button"
-              className={item.id === activeItem?.id ? "active" : undefined}
-              style={{ paddingLeft: `${(item.level - 1) * 12 + 8}px` }}
-              onClick={() => onSelectLine(item.line)}
-            >
-              {item.text}
-            </button>
+              item={item}
+              isActive={item.id === activeItem?.id}
+            />
           ))}
         </nav>
       ) : (
@@ -36,4 +65,4 @@ export function DocumentOutline({
       )}
     </aside>
   );
-}
+});

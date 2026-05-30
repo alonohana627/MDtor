@@ -1,4 +1,5 @@
 import { parseMarkdown } from "./parseMarkdown";
+import { type MarkdownBlock } from "./types";
 
 export type OutlineItem = {
   id: string;
@@ -18,9 +19,13 @@ function slugifyHeading(text: string) {
 }
 
 export function getMarkdownOutline(markdown: string): OutlineItem[] {
+  return getMarkdownOutlineFromBlocks(parseMarkdown(markdown));
+}
+
+export function getMarkdownOutlineFromBlocks(blocks: MarkdownBlock[]): OutlineItem[] {
   const seen = new Map<string, number>();
 
-  return parseMarkdown(markdown)
+  return blocks
     .filter((block) => block.type === "heading")
     .map((block) => {
       const baseId = slugifyHeading(block.text);

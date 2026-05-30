@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { afterEach, bench, describe, vi } from "vitest";
 import { useProjectKeyboardShortcuts } from "../../src/hooks/useProjectKeyboardShortcuts";
 
+// eslint-disable-next-line react-refresh/only-export-components
 function ShortcutHarness({
   isBusy = false,
   isProjectOpen = true,

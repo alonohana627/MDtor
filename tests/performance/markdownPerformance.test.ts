@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { parseMarkdown } from "../../src/markdown/parseMarkdown";
 
 function measureMs(fn: () => void) {

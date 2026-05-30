@@ -40,6 +40,7 @@ const browserProjectSource: ProjectSource = {
   name: "project",
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 function PollingHarness({
   projectSource,
   currentFiles,

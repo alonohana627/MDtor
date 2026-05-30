@@ -1,6 +1,18 @@
-import { type Ref, useMemo, useRef } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  createMarkdownHighlightIndex,
+  getMarkdownHighlightLineCount,
+} from "../../markdown/highlightMarkdown";
 import { type DocumentDirection } from "../../types";
 import { MarkdownHighlightLayer } from "../MarkdownHighlightLayer";
+import { getCurrentLine, getCurrentLineFromLineStarts } from "./editorTextMetrics";
 import "./MarkdownEditor.css";
 
 type MarkdownEditorProps = {
@@ -20,26 +32,10 @@ type MarkdownEditorProps = {
 };
 
 const EDITOR_TEXT_DIRECTION = "auto";
+const TYPEWRITER_SMOOTH_LINE_LIMIT = 400;
 
-export function getCurrentLine(value: string, cursorIndex: number) {
-  return value.slice(0, cursorIndex).split("\n").length;
-}
-
-function restoreCursorPosition(
-  textarea: HTMLTextAreaElement,
-  selectionStart: number,
-  selectionEnd: number,
-  selectionDirection: "forward" | "backward" | "none",
-) {
-  window.requestAnimationFrame(() => {
-    if (document.activeElement !== textarea) {
-      return;
-    }
-
-    const cursorStart = Math.min(selectionStart, textarea.value.length);
-    const cursorEnd = Math.min(selectionEnd, textarea.value.length);
-    textarea.setSelectionRange(cursorStart, cursorEnd, selectionDirection);
-  });
+function createLineNumbers(lineCount: number) {
+  return Array.from({ length: lineCount }, (_, index) => index + 1).join("\n");
 }
 
 export function MarkdownEditor({
@@ -59,20 +55,100 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const gutterRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
-  const lineNumbers = useMemo(
-    () =>
-      Array.from({ length: value.split("\n").length }, (_, index) => index + 1).join(
-        "\n",
-      ),
-    [value],
-  );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cursorRestoreIdRef = useRef(0);
+  const highlightViewportFrameRef = useRef<number | null>(null);
+  const lastReportedLineRef = useRef(currentLine);
+  const [highlightViewport, setHighlightViewport] = useState({
+    scrollTop: 0,
+    viewportHeight: 0,
+  });
+  const highlightIndex = useMemo(() => createMarkdownHighlightIndex(value), [value]);
+  const lineCount = getMarkdownHighlightLineCount(highlightIndex);
+  const lineNumbers = useMemo(() => createLineNumbers(lineCount), [lineCount]);
+  useImperativeHandle(editorRef, () => textareaRef.current as HTMLTextAreaElement, []);
 
-  function updateCurrentLine(textarea: HTMLTextAreaElement) {
-    onCurrentLineChange(getCurrentLine(textarea.value, textarea.selectionStart));
+  useEffect(() => {
+    lastReportedLineRef.current = currentLine;
+  }, [currentLine]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightViewportFrameRef.current !== null) {
+        window.cancelAnimationFrame(highlightViewportFrameRef.current);
+      }
+    };
+  }, []);
+
+  function queueCursorRestore(
+    textarea: HTMLTextAreaElement,
+    selectionStart: number,
+    selectionEnd: number,
+    selectionDirection: "forward" | "backward" | "none",
+  ) {
+    const restoreId = cursorRestoreIdRef.current + 1;
+    cursorRestoreIdRef.current = restoreId;
+
+    window.requestAnimationFrame(() => {
+      if (
+        cursorRestoreIdRef.current !== restoreId ||
+        document.activeElement !== textarea
+      ) {
+        return;
+      }
+
+      const cursorStart = Math.min(selectionStart, textarea.value.length);
+      const cursorEnd = Math.min(selectionEnd, textarea.value.length);
+      textarea.setSelectionRange(cursorStart, cursorEnd, selectionDirection);
+    });
+  }
+
+  function updateHighlightViewportNow(textarea: HTMLTextAreaElement) {
+    const scrollTop = Math.max(0, textarea.scrollTop);
+    const viewportHeight = Math.max(0, textarea.clientHeight);
+
+    setHighlightViewport((currentViewport) => {
+      if (
+        currentViewport.scrollTop === scrollTop &&
+        currentViewport.viewportHeight === viewportHeight
+      ) {
+        return currentViewport;
+      }
+
+      return { scrollTop, viewportHeight };
+    });
+  }
+
+  function scheduleHighlightViewportUpdate(textarea: HTMLTextAreaElement) {
+    if (highlightViewportFrameRef.current !== null) {
+      return;
+    }
+
+    highlightViewportFrameRef.current = window.requestAnimationFrame(() => {
+      highlightViewportFrameRef.current = null;
+      updateHighlightViewportNow(textarea);
+    });
+  }
+
+  function updateCurrentLineNow(
+    textarea: HTMLTextAreaElement,
+    source: "line-index" | "textarea-value" = "line-index",
+  ) {
+    const nextLine =
+      source === "textarea-value"
+        ? getCurrentLine(textarea.value, textarea.selectionStart)
+        : getCurrentLineFromLineStarts(
+            highlightIndex.lineStarts,
+            textarea.selectionStart,
+          );
+
+    if (nextLine !== lastReportedLineRef.current) {
+      lastReportedLineRef.current = nextLine;
+      onCurrentLineChange(nextLine);
+    }
 
     if (isTypewriterMode) {
-      const currentLineIndex =
-        getCurrentLine(textarea.value, textarea.selectionStart) - 1;
+      const currentLineIndex = nextLine - 1;
       const lineHeight = Number.parseFloat(
         window.getComputedStyle(textarea).lineHeight || "24",
       );
@@ -81,7 +157,7 @@ export function MarkdownEditor({
 
       textarea.scrollTo({
         top: Math.max(0, nextScrollTop),
-        behavior: "smooth",
+        behavior: lineCount > TYPEWRITER_SMOOTH_LINE_LIMIT ? "auto" : "smooth",
       });
     }
   }
@@ -95,6 +171,8 @@ export function MarkdownEditor({
       highlightRef.current.scrollTop = textarea.scrollTop;
       highlightRef.current.scrollLeft = textarea.scrollLeft;
     }
+
+    scheduleHighlightViewportUpdate(textarea);
   }
 
   return (
@@ -146,9 +224,14 @@ export function MarkdownEditor({
           value={lineNumbers}
         />
         <div className="markdown-editor-stack">
-          <MarkdownHighlightLayer ref={highlightRef} markdown={value} />
+          <MarkdownHighlightLayer
+            ref={highlightRef}
+            highlightIndex={highlightIndex}
+            scrollTop={highlightViewport.scrollTop}
+            viewportHeight={highlightViewport.viewportHeight}
+          />
           <textarea
-            ref={editorRef}
+            ref={textareaRef}
             className="markdown-textarea"
             aria-label="Markdown editor"
             data-document-direction={direction}
@@ -163,17 +246,17 @@ export function MarkdownEditor({
               const selectionDirection = textarea.selectionDirection;
 
               onChange(event.currentTarget.value);
-              updateCurrentLine(textarea);
-              restoreCursorPosition(
+              updateCurrentLineNow(textarea, "textarea-value");
+              updateHighlightViewportNow(textarea);
+              queueCursorRestore(
                 textarea,
                 selectionStart,
                 selectionEnd,
                 selectionDirection,
               );
             }}
-            onClick={(event) => updateCurrentLine(event.currentTarget)}
-            onKeyUp={(event) => updateCurrentLine(event.currentTarget)}
-            onSelect={(event) => updateCurrentLine(event.currentTarget)}
+            onClick={(event) => updateCurrentLineNow(event.currentTarget)}
+            onKeyUp={(event) => updateCurrentLineNow(event.currentTarget)}
             onScroll={(event) => {
               syncLineNumberScroll(event.currentTarget);
               onEditorScroll?.(event.currentTarget);

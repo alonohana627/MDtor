@@ -210,9 +210,16 @@ MarkdownHighlightLayer  -> colored text, not editable
 textarea                -> real input, transparent text, visible caret
 ```
 
-Both layers use the same font, padding, line height, and scroll position. The
-textarea remains the source of truth. `highlightMarkdown.ts` only creates tokens
-for display.
+Both layers use the same font, padding, line height, and scroll position. Editor
+tokens are color-only: they do not change font weight, font style, kerning, or
+ligatures, because the visible highlight layer must keep the same glyph advances
+as the native textarea caret. The textarea remains the source of truth.
+`highlightMarkdown.ts` only creates tokens for display.
+For large documents, the highlight layer does not render every line. It builds a
+line-start index, tracks whether each line starts inside a fenced code block,
+and tokenizes only the visible editor window plus overscan. The same line-start
+index lets cursor-line tracking use binary search instead of splitting the whole
+document during normal cursor movement.
 
 Example:
 
@@ -233,7 +240,7 @@ Becomes tokens like:
 To add a new editor color rule:
 
 1. Add or reuse a token type in `highlightMarkdown.ts`.
-2. Teach `highlightMarkdown()` or `highlightInline()` how to create it.
+2. Teach the line highlighter or `highlightInline()` how to create it.
 3. Add a `.md-token-*` style in `MarkdownEditor.css`.
 
 ## Where To Change Things

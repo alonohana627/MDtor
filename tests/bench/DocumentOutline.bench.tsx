@@ -1,6 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { afterEach, bench, describe, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, bench, describe, vi } from "vitest";
 import { DocumentOutline } from "../../src/components/DocumentOutline";
 import type { OutlineItem } from "../../src/markdown/outline";
 
@@ -26,6 +26,9 @@ const onSelectLine = vi.fn();
 
 let roots: Root[] = [];
 let containers: HTMLDivElement[] = [];
+let outlineUpdateRoot: Root | null = null;
+let outlineUpdateContainer: HTMLDivElement | null = null;
+let outlineUpdateLine = 30;
 
 function renderDocumentOutline(items: OutlineItem[], currentLine: number) {
   const container = document.createElement("div");
@@ -40,6 +43,39 @@ function renderDocumentOutline(items: OutlineItem[], currentLine: number) {
       <DocumentOutline
         items={items}
         currentLine={currentLine}
+        onSelectLine={onSelectLine}
+      />,
+    );
+  });
+}
+
+beforeAll(() => {
+  outlineUpdateContainer = document.createElement("div");
+  document.body.appendChild(outlineUpdateContainer);
+  outlineUpdateRoot = createRoot(outlineUpdateContainer);
+
+  flushSync(() => {
+    outlineUpdateRoot?.render(
+      <DocumentOutline items={largeItems} currentLine={30} onSelectLine={onSelectLine} />,
+    );
+  });
+});
+
+afterAll(() => {
+  outlineUpdateRoot?.unmount();
+  outlineUpdateContainer?.remove();
+  outlineUpdateRoot = null;
+  outlineUpdateContainer = null;
+});
+
+function updateLargeDocumentOutlineCurrentLine() {
+  outlineUpdateLine = outlineUpdateLine === 30 ? 1500 : 30;
+
+  flushSync(() => {
+    outlineUpdateRoot?.render(
+      <DocumentOutline
+        items={largeItems}
+        currentLine={outlineUpdateLine}
         onSelectLine={onSelectLine}
       />,
     );
@@ -75,5 +111,9 @@ describe("DocumentOutline render", () => {
 
   bench("render large outline", () => {
     renderDocumentOutline(largeItems, 1500);
+  });
+
+  bench("update large outline active item", () => {
+    updateLargeDocumentOutlineCurrentLine();
   });
 });

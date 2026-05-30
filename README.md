@@ -14,9 +14,11 @@ controls, and persistence for recent projects and active files.
 - Live preview while typing.
 - Editor line numbers synced with textarea scrolling.
 - Current editor line indicator and preview block highlighting.
+- Independent editor and preview scrolling with an optional sync toggle.
 - LTR and RTL document direction controls.
 - Light and dark mode toggle.
-- Editor-side Markdown syntax highlighting.
+- Responsive large-document editing with virtualized editor-side Markdown
+  highlighting.
 - Preview-side fenced code-block syntax highlighting with Shiki.
 - Live word count, character count, and reading-time estimate.
 - Live outline sidebar generated from document headings.
@@ -133,18 +135,20 @@ npm run tauri build
 
 ## Scripts
 
-| Command                 | Purpose                                  |
-| ----------------------- | ---------------------------------------- |
-| `npm run dev`           | Start the Vite development server        |
-| `npm run build`         | Type-check and build the frontend        |
-| `npm test`              | Run unit tests                           |
-| `npm run test:coverage` | Run local unit test coverage             |
-| `npm run lint`          | Run ESLint                               |
-| `npm run lint:fix`      | Run ESLint with automatic fixes          |
-| `npm run format`        | Format files with Prettier               |
-| `npm run format:check`  | Check formatting without writing changes |
-| `npm run preview`       | Preview the production Vite build        |
-| `npm run tauri`         | Run the Tauri CLI                        |
+| Command                    | Purpose                                  |
+| -------------------------- | ---------------------------------------- |
+| `npm run dev`              | Start the Vite development server        |
+| `npm run build`            | Type-check and build the frontend        |
+| `npm test`                 | Run unit tests                           |
+| `npm run test:coverage`    | Run local unit test coverage             |
+| `npm run test:performance` | Run local performance regression tests   |
+| `npm run bench`            | Run Vitest benchmarks                    |
+| `npm run lint`             | Run ESLint                               |
+| `npm run lint:fix`         | Run ESLint with automatic fixes          |
+| `npm run format`           | Format files with Prettier               |
+| `npm run format:check`     | Check formatting without writing changes |
+| `npm run preview`          | Preview the production Vite build        |
+| `npm run tauri`            | Run the Tauri CLI                        |
 
 ## Documentation
 
@@ -159,6 +163,9 @@ npm run tauri build
 
 Unit tests live under `tests/unit` and cover Markdown parsing/rendering, React
 components, project services, persistence, and project workflow hooks.
+Performance regression tests live under `tests/performance`, and benchmarks live
+under `tests/bench` for local profiling of editor, preview, Markdown, and
+workspace hot paths.
 
 Run all tests:
 

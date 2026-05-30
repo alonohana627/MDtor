@@ -32,6 +32,22 @@ describe("DocumentOutline", () => {
     expect(screen.getByText("No headings")).toBeInTheDocument();
   });
 
+  it("ignores clicks that are not outline item buttons", () => {
+    const onSelectLine = vi.fn();
+
+    render(
+      <DocumentOutline
+        items={[{ id: "one", level: 1, text: "One", line: 1 }]}
+        currentLine={1}
+        onSelectLine={onSelectLine}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("navigation"));
+
+    expect(onSelectLine).not.toHaveBeenCalled();
+  });
+
   it("keeps outline scrolling inside the outline panel", () => {
     const css = readFileSync(
       resolve(process.cwd(), "src/components/DocumentOutline/DocumentOutline.css"),

@@ -7,11 +7,13 @@
   line-height: 1.65;
 }
 
-.preview > :first-child {
+.preview > :first-child,
+.preview-content > :first-child {
   margin-top: 0;
 }
 
-.preview > :last-child {
+.preview > :last-child,
+.preview-content > :last-child {
   margin-bottom: 0;
 }
 
