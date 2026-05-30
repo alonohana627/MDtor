@@ -7,10 +7,7 @@ import {
   type BrowserProjectFile,
 } from "../services/browserProjectFiles";
 import { readProjectAsset, type ProjectFile } from "../services/projectFiles";
-import {
-  loadRecentProjects,
-  type RecentProject,
-} from "../services/projectPersistence";
+import { loadRecentProjects, type RecentProject } from "../services/projectPersistence";
 import { type ProjectSource } from "../project/projectTypes";
 import { useProjectKeyboardShortcuts } from "./useProjectKeyboardShortcuts";
 import { useProjectPolling } from "./useProjectPolling";

@@ -29,7 +29,9 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 3, endLine: 3 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={3} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} currentLine={3} theme="light" direction={"ltr"} />,
+    );
 
     expect(screen.getByRole("heading", { name: "Heading", level: 2 })).toHaveClass(
       "active-preview-block",
@@ -43,7 +45,14 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 1 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={99} theme="light" />);
+    render(
+      <MarkdownBlockView
+        block={block}
+        currentLine={99}
+        theme="light"
+        direction={"ltr"}
+      />,
+    );
 
     expect(screen.getByText("bold")).toHaveTextContent("bold");
     expect(screen.getByText("bold").tagName.toLowerCase()).toBe("strong");
@@ -60,7 +69,9 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 2 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={2} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} currentLine={2} theme="light" direction={"ltr"} />,
+    );
 
     expect(screen.getByText("one")).not.toHaveClass("active-preview-line");
     expect(screen.getByText("two")).toHaveClass("active-preview-line");
@@ -73,7 +84,9 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 1 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={1} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} currentLine={1} theme="light" direction={"ltr"} />,
+    );
 
     expect(screen.getByText("quoted")).toHaveClass("active-preview-block");
   });
@@ -86,7 +99,9 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 3 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={2} theme="dark" />);
+    render(
+      <MarkdownBlockView block={block} currentLine={2} theme="dark" direction={"ltr"} />,
+    );
 
     expect(screen.getByText("ts")).toBeInTheDocument();
     expect(screen.getByText("const value = 1;")).toBeInTheDocument();

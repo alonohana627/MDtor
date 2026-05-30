@@ -15,10 +15,7 @@ import { useProjectWorkspace } from "./hooks/useProjectWorkspace";
 import { getDocumentStats } from "./markdown/documentStats";
 import { getMarkdownOutline } from "./markdown/outline";
 import { getProjectLabel } from "./project/projectUtils";
-import {
-  exportMarkdownDocument,
-  type ExportFormat,
-} from "./services/documentExport";
+import { exportMarkdownDocument, type ExportFormat } from "./services/documentExport";
 import { type DocumentDirection, type Theme } from "./types";
 import "./App.css";
 
@@ -45,10 +42,7 @@ function App() {
     () => getMarkdownOutline(workspace.markdown),
     [workspace.markdown],
   );
-  const stats = useMemo(
-    () => getDocumentStats(workspace.markdown),
-    [workspace.markdown],
-  );
+  const stats = useMemo(() => getDocumentStats(workspace.markdown), [workspace.markdown]);
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));

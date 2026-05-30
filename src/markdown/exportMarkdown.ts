@@ -18,10 +18,7 @@ function escapeXml(value: string) {
 function renderInlineHtml(text: string) {
   return escapeHtml(text)
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-    .replace(
-      /\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)/g,
-      '<a href="$2">$1</a>',
-    )
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)/g, '<a href="$2">$1</a>')
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
@@ -116,13 +113,18 @@ export function markdownToPdfBytes(markdown: string, title = "Document") {
     title,
     "",
     ...markdownToPlainLines(markdown).flatMap((line) =>
-      line.length > 92 ? line.match(/.{1,92}(\s|$)/g)?.map((part) => part.trim()) ?? [line] : [line],
+      line.length > 92
+        ? (line.match(/.{1,92}(\s|$)/g)?.map((part) => part.trim()) ?? [line])
+        : [line],
     ),
   ];
   const lineHeight = 16;
   const pageHeight = Math.max(792, 96 + lines.length * lineHeight);
   const textCommands = lines
-    .map((line, index) => `1 0 0 1 72 ${pageHeight - 72 - index * lineHeight} Tm (${escapePdfText(line)}) Tj`)
+    .map(
+      (line, index) =>
+        `1 0 0 1 72 ${pageHeight - 72 - index * lineHeight} Tm (${escapePdfText(line)}) Tj`,
+    )
     .join("\n");
   const stream = `BT
 /F1 11 Tf
@@ -301,11 +303,7 @@ function renderDocxRuns(text: string, context: DocxRenderContext) {
     .join("");
 }
 
-function renderDocxParagraph(
-  text: string,
-  context: DocxRenderContext,
-  style?: string,
-) {
+function renderDocxParagraph(text: string, context: DocxRenderContext, style?: string) {
   const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
 
   return `<w:p>${styleXml}${renderDocxRuns(text, context)}</w:p>`;
@@ -344,7 +342,9 @@ export function markdownToDocxBytes(markdown: string) {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
-    ${parseMarkdown(markdown).map((block) => renderDocxBlock(block, context)).join("\n")}
+    ${parseMarkdown(markdown)
+      .map((block) => renderDocxBlock(block, context))
+      .join("\n")}
     <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
   </w:body>
 </w:document>`;

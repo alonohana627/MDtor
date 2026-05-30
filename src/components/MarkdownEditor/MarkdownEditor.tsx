@@ -21,7 +21,7 @@ type MarkdownEditorProps = {
 
 const EDITOR_TEXT_DIRECTION = "auto";
 
-function getCurrentLine(value: string, cursorIndex: number) {
+export function getCurrentLine(value: string, cursorIndex: number) {
   return value.slice(0, cursorIndex).split("\n").length;
 }
 
@@ -71,7 +71,8 @@ export function MarkdownEditor({
     onCurrentLineChange(getCurrentLine(textarea.value, textarea.selectionStart));
 
     if (isTypewriterMode) {
-      const currentLineIndex = getCurrentLine(textarea.value, textarea.selectionStart) - 1;
+      const currentLineIndex =
+        getCurrentLine(textarea.value, textarea.selectionStart) - 1;
       const lineHeight = Number.parseFloat(
         window.getComputedStyle(textarea).lineHeight || "24",
       );

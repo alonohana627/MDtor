@@ -22,8 +22,7 @@ const EXPORT_CONFIG = {
   },
   docx: {
     extension: "docx",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     name: "Word document",
   },
   html: {
@@ -31,10 +30,7 @@ const EXPORT_CONFIG = {
     mimeType: "text/html;charset=utf-8",
     name: "HTML document",
   },
-} satisfies Record<
-  ExportFormat,
-  { extension: string; mimeType: string; name: string }
->;
+} satisfies Record<ExportFormat, { extension: string; mimeType: string; name: string }>;
 
 function getBaseFileName(activeFilePath: string | null) {
   const fileName = activeFilePath?.split("/").pop() ?? "document.md";

@@ -332,9 +332,7 @@ export function useProjectWorkspaceActions({
     }
 
     const requestedPath = window.prompt("New Markdown file path", "untitled.md");
-    const relativePath = requestedPath
-      ? normalizeProjectFilePath(requestedPath)
-      : null;
+    const relativePath = requestedPath ? normalizeProjectFilePath(requestedPath) : null;
 
     if (!relativePath) {
       return;

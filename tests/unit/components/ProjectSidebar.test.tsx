@@ -2,9 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectSidebar } from "../../../src/components/ProjectSidebar";
 
-function renderSidebar(
-  props: Partial<Parameters<typeof ProjectSidebar>[0]> = {},
-) {
+function renderSidebar(props: Partial<Parameters<typeof ProjectSidebar>[0]> = {}) {
   const defaultProps = {
     files: [] as { relativePath: string }[],
     activeFilePath: null,

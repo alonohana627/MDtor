@@ -30,9 +30,7 @@ export function normalizeProjectFilePath(input: string) {
 
   if (
     !normalizedPath ||
-    normalizedPath
-      .split("/")
-      .some((part) => !part || part === "." || part === "..")
+    normalizedPath.split("/").some((part) => !part || part === "." || part === "..")
   ) {
     return null;
   }

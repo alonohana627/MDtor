@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getActiveOutlineItem,
-  getMarkdownOutline,
-} from "../../../src/markdown/outline";
+import { getActiveOutlineItem, getMarkdownOutline } from "../../../src/markdown/outline";
 
 describe("outline helpers", () => {
   it("extracts heading hierarchy with stable duplicate ids", () => {

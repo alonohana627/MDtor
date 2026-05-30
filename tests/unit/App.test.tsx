@@ -15,7 +15,9 @@ vi.mock("../../src/services/documentExport", () => ({
 const useProjectWorkspaceMock = vi.mocked(useProjectWorkspace);
 const exportMarkdownDocumentMock = vi.mocked(exportMarkdownDocument);
 
-function createWorkspace(overrides: Partial<ReturnType<typeof useProjectWorkspace>> = {}) {
+function createWorkspace(
+  overrides: Partial<ReturnType<typeof useProjectWorkspace>> = {},
+) {
   return {
     activeFilePath: "chapter.md",
     createNewFile: vi.fn(),

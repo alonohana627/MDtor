@@ -22,7 +22,6 @@ Tauri, Rust, npm tooling, Markdown rendering, file persistence, or packaging.
 
 2. Read the smallest relevant files before changing behavior. Good starting
    points are:
-
    - `README.md` for user-facing behavior and scripts.
    - `ARCHITECTURE.md` for module boundaries.
    - `src/hooks/useProjectWorkspace.ts` and nearby workspace modules for project

@@ -654,7 +654,9 @@ describe("useProjectWorkspaceHelpers", () => {
       setProjectError: vi.fn(),
       setRecentProjects: vi.fn(),
     };
-    saveRecentProjectMock.mockReturnValue([{ kind: "tauri", id: "/book", label: "/book" }]);
+    saveRecentProjectMock.mockReturnValue([
+      { kind: "tauri", id: "/book", label: "/book" },
+    ]);
     removeRecentProjectMock.mockReturnValue([]);
     scanProjectFolderMock.mockResolvedValueOnce([{ relativePath: "chapter.md" }]);
     readProjectFileMock.mockResolvedValueOnce("# Chapter");

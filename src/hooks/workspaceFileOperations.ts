@@ -62,10 +62,7 @@ type RenameFileParams = {
   newRelativePath: string;
   refs: WorkspaceRefs;
   source: ProjectSource;
-  state: Pick<
-    WorkspaceState,
-    "setActiveFile" | "setProjectFiles"
-  >;
+  state: Pick<WorkspaceState, "setActiveFile" | "setProjectFiles">;
 };
 
 type MissingActiveFileParams = {

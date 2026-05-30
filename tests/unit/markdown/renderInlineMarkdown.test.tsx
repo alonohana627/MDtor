@@ -1,5 +1,6 @@
 import { isValidElement } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import { describe, expect, it, vi } from "vitest";
 import { renderInlineMarkdown } from "../../../src/markdown/renderInlineMarkdown";
 
@@ -93,9 +94,7 @@ describe("renderInlineMarkdown", () => {
       "blob:image",
     );
 
-    rerender(
-      <>{renderInlineMarkdown("![Diagram](images/two.png)", { loadImage })}</>,
-    );
+    rerender(<>{renderInlineMarkdown("![Diagram](images/two.png)", { loadImage })}</>);
 
     await waitFor(() => {
       expect(loadImage).toHaveBeenCalledWith("images/two.png");
@@ -105,9 +104,7 @@ describe("renderInlineMarkdown", () => {
   it("renders a missing-image state when local image loading fails", async () => {
     const loadImage = vi.fn().mockRejectedValue(new Error("missing"));
 
-    render(
-      <>{renderInlineMarkdown("![Diagram](images/missing.png)", { loadImage })}</>,
-    );
+    render(<>{renderInlineMarkdown("![Diagram](images/missing.png)", { loadImage })}</>);
 
     expect(await screen.findByText("Missing image: Diagram")).toBeInTheDocument();
   });
