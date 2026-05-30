@@ -31,12 +31,13 @@ describe("useProjectKeyboardShortcuts", () => {
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     fireEvent.keyDown(window, { key: "p", ctrlKey: true });
     fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "ArrowRight", ctrlKey: true, altKey: true });
 
     expect(props.handleManualSave).toHaveBeenCalledTimes(1);
     expect(props.openProjectFolder).toHaveBeenCalledTimes(1);
     expect(props.createNewFile).toHaveBeenCalledTimes(1);
     expect(props.openQuickFileSwitcher).toHaveBeenCalledTimes(1);
-    expect(props.switchToNextFile).toHaveBeenCalledTimes(1);
+    expect(props.switchToNextFile).toHaveBeenCalledTimes(2);
   });
 
   it("dispatches project shortcuts for Cmd key combinations", () => {
@@ -44,9 +45,10 @@ describe("useProjectKeyboardShortcuts", () => {
 
     fireEvent.keyDown(window, { key: "S", metaKey: true });
     fireEvent.keyDown(window, { key: "Tab", metaKey: true });
+    fireEvent.keyDown(window, { key: "ArrowRight", metaKey: true, altKey: true });
 
     expect(props.handleManualSave).toHaveBeenCalledTimes(1);
-    expect(props.switchToNextFile).toHaveBeenCalledTimes(1);
+    expect(props.switchToNextFile).toHaveBeenCalledTimes(2);
   });
 
   it("does not run file actions while busy or without an open project", () => {

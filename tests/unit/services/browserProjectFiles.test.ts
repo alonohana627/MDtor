@@ -124,6 +124,7 @@ describe("browserProjectFiles", () => {
     const project = await openBrowserProjectFolder();
 
     expect(project).toMatchObject({
+      id: expect.stringContaining("Book:"),
       name: "Book",
       files: [{ relativePath: "notes/idea.md" }, { relativePath: "readme.markdown" }],
     });
@@ -230,5 +231,13 @@ describe("browserProjectFiles", () => {
     await expect(openBrowserProjectFolder()).rejects.toThrow(
       "This browser cannot open local folders",
     );
+  });
+
+  it("returns null when browser folder picking is cancelled", async () => {
+    const error = new Error("cancelled");
+    error.name = "AbortError";
+    vi.stubGlobal("showDirectoryPicker", vi.fn().mockRejectedValue(error));
+
+    await expect(openBrowserProjectFolder()).resolves.toBeNull();
   });
 });

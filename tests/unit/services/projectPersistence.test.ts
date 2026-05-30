@@ -137,15 +137,15 @@ describe("projectPersistence", () => {
 
   it("stores last active files independently per project id", () => {
     saveLastActiveProjectFile("tauri:/notes/book", "chapter-01.md");
-    saveLastActiveProjectFile("browser:Book", "notes/idea.md");
+    saveLastActiveProjectFile("browser:book-1", "notes/idea.md");
 
     expect(loadLastActiveProjectFile("tauri:/notes/book")).toBe("chapter-01.md");
-    expect(loadLastActiveProjectFile("browser:Book")).toBe("notes/idea.md");
+    expect(loadLastActiveProjectFile("browser:book-1")).toBe("notes/idea.md");
 
     clearLastActiveProjectFile("tauri:/notes/book");
 
     expect(loadLastActiveProjectFile("tauri:/notes/book")).toBeNull();
-    expect(loadLastActiveProjectFile("browser:Book")).toBe("notes/idea.md");
+    expect(loadLastActiveProjectFile("browser:book-1")).toBe("notes/idea.md");
   });
 
   it("stores and restores browser directory handles from IndexedDB", async () => {
@@ -156,9 +156,12 @@ describe("projectPersistence", () => {
     } as unknown as FileSystemDirectoryHandle;
     vi.stubGlobal("indexedDB", indexedDb);
 
-    await saveLastBrowserDirectoryHandle(directoryHandle);
+    await saveLastBrowserDirectoryHandle(directoryHandle, "book-1");
 
-    await expect(loadLastBrowserDirectoryHandle()).resolves.toBe(directoryHandle);
+    await expect(loadLastBrowserDirectoryHandle()).resolves.toEqual({
+      id: "book-1",
+      directoryHandle,
+    });
     expect(indexedDb.open).toHaveBeenCalledWith("mdtor-project-state", 1);
     expect(db.transaction).toHaveBeenCalledWith("project-handles", "readwrite");
     expect(db.transaction).toHaveBeenCalledWith("project-handles", "readonly");
@@ -177,7 +180,7 @@ describe("projectPersistence", () => {
     } as unknown as FileSystemDirectoryHandle;
     vi.stubGlobal("indexedDB", indexedDb);
 
-    await saveLastBrowserDirectoryHandle(directoryHandle);
+    await saveLastBrowserDirectoryHandle(directoryHandle, "book-1");
 
     expect(db.createObjectStore).toHaveBeenCalledWith("project-handles");
   });
@@ -189,12 +192,27 @@ describe("projectPersistence", () => {
     await expect(loadLastBrowserDirectoryHandle()).resolves.toBeNull();
   });
 
+  it("loads legacy browser directory handle records", async () => {
+    const { indexedDb, store } = createIndexedDbHarness();
+    const directoryHandle = {
+      name: "Legacy Book",
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    } as unknown as FileSystemDirectoryHandle;
+    store.set("last-browser-directory", directoryHandle);
+    vi.stubGlobal("indexedDB", indexedDb);
+
+    await expect(loadLastBrowserDirectoryHandle()).resolves.toEqual({
+      id: "Legacy Book",
+      directoryHandle,
+    });
+  });
+
   it("returns null when browser directory persistence is unavailable or denied", async () => {
     vi.stubGlobal("indexedDB", undefined);
 
     await expect(loadLastBrowserDirectoryHandle()).resolves.toBeNull();
     await expect(
-      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle),
+      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle, "book-1"),
     ).resolves.toBeUndefined();
 
     const { indexedDb } = createIndexedDbHarness();
@@ -204,7 +222,7 @@ describe("projectPersistence", () => {
     } as unknown as FileSystemDirectoryHandle;
     vi.stubGlobal("indexedDB", indexedDb);
 
-    await saveLastBrowserDirectoryHandle(directoryHandle);
+    await saveLastBrowserDirectoryHandle(directoryHandle, "denied-1");
 
     await expect(loadLastBrowserDirectoryHandle()).resolves.toBeNull();
   });
@@ -216,7 +234,7 @@ describe("projectPersistence", () => {
     vi.stubGlobal("indexedDB", indexedDb);
 
     await expect(
-      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle),
+      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle, "book-1"),
     ).rejects.toThrow("open failed");
   });
 
@@ -227,7 +245,7 @@ describe("projectPersistence", () => {
     vi.stubGlobal("indexedDB", indexedDb);
 
     await expect(
-      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle),
+      saveLastBrowserDirectoryHandle({} as FileSystemDirectoryHandle, "book-1"),
     ).rejects.toThrow("write failed");
   });
 

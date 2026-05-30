@@ -3,6 +3,7 @@ import { type ProjectFile } from "./projectFiles";
 export type BrowserProjectFile = { kind: "writable"; handle: FileSystemFileHandle };
 
 export type BrowserProject = {
+  id: string;
   name: string;
   files: ProjectFile[];
   fileHandles: Map<string, BrowserProjectFile>;
@@ -40,6 +41,15 @@ function getErrorName(error: unknown) {
   return typeof error === "object" && error && "name" in error ? String(error.name) : "";
 }
 
+function createBrowserProjectId(directoryName: string) {
+  const randomId =
+    window.crypto && "randomUUID" in window.crypto
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  return `${directoryName}:${randomId}`;
+}
+
 async function collectMarkdownFiles(
   directoryHandle: FileSystemDirectoryHandle,
   fileHandles: Map<string, BrowserProjectFile>,
@@ -67,15 +77,27 @@ export async function openBrowserProjectFolder(): Promise<BrowserProject | null>
     );
   }
 
-  const directoryHandle = await window.showDirectoryPicker({
-    id: "mdtor-project-folder",
-    mode: "readwrite",
-  });
+  let directoryHandle: FileSystemDirectoryHandle;
+
+  try {
+    directoryHandle = await window.showDirectoryPicker({
+      id: "mdtor-project-folder",
+      mode: "readwrite",
+    });
+  } catch (error) {
+    if (getErrorName(error) === "AbortError") {
+      return null;
+    }
+
+    throw error;
+  }
+
   const fileHandles = new Map<string, BrowserProjectFile>();
 
   await collectMarkdownFiles(directoryHandle, fileHandles);
 
   return {
+    id: createBrowserProjectId(directoryHandle.name),
     name: directoryHandle.name,
     files: createProjectFiles(fileHandles),
     fileHandles,

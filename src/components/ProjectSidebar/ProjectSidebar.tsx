@@ -74,7 +74,12 @@ export function ProjectSidebar({
     <aside className="project-sidebar" aria-label="Project files">
       <div className="project-sidebar-header">
         <div className="project-sidebar-actions">
-          <button type="button" className="project-open-button" onClick={onOpenProject}>
+          <button
+            type="button"
+            className="project-open-button"
+            disabled={isBusy}
+            onClick={onOpenProject}
+          >
             Open folder
           </button>
           <button

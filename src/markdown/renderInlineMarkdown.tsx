@@ -1,13 +1,36 @@
 import { Fragment, ReactNode } from "react";
 
 const inlinePattern = /(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+const safeLinkProtocols = new Set(["http:", "https:", "mailto:"]);
+
+export function getSafeMarkdownLinkHref(href: string) {
+  const trimmedHref = href.trim();
+
+  if (!/^[a-z][a-z\d+.-]*:/i.test(trimmedHref)) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmedHref);
+
+    return safeLinkProtocols.has(url.protocol.toLowerCase()) ? trimmedHref : null;
+  } catch {
+    return null;
+  }
+}
 
 export function renderInlineMarkdown(text: string): ReactNode[] {
   return text.split(inlinePattern).flatMap((part, index) => {
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link) {
+      const safeHref = getSafeMarkdownLinkHref(link[2]);
+
+      if (!safeHref) {
+        return <span key={index}>{link[1]}</span>;
+      }
+
       return (
-        <a key={index} href={link[2]} target="_blank" rel="noreferrer">
+        <a key={index} href={safeHref} target="_blank" rel="noreferrer">
           {link[1]}
         </a>
       );

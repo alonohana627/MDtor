@@ -182,7 +182,8 @@ First becomes:
 ```
 
 Then `renderInlineMarkdown()` turns `**bold**` into `<strong>` and `` `code` ``
-into `<code>`.
+into `<code>`. Links only become clickable when their URL uses an allowlisted
+scheme: `http:`, `https:`, or `mailto:`.
 
 Keeping these separate makes the code easier to change:
 

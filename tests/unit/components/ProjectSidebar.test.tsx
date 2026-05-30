@@ -151,6 +151,7 @@ describe("ProjectSidebar", () => {
       />,
     );
 
+    expect(screen.getByRole("button", { name: "Open folder" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "New file" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "one.md" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Move two.md up" })).toBeDisabled();

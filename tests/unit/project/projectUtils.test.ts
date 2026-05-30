@@ -10,15 +10,17 @@ describe("projectUtils", () => {
   it("formats project labels for Tauri and browser sources", () => {
     expect(getProjectLabel(null)).toBeNull();
     expect(getProjectLabel({ kind: "tauri", path: "/notes/book" })).toBe("/notes/book");
-    expect(getProjectLabel({ kind: "browser", name: "Book" })).toBe("Book (browser)");
+    expect(getProjectLabel({ kind: "browser", name: "Book", id: "book-1" })).toBe(
+      "Book (browser)",
+    );
   });
 
   it("creates stable persistence ids by project source", () => {
     expect(getProjectPersistenceId({ kind: "tauri", path: "/notes/book" })).toBe(
       "tauri:/notes/book",
     );
-    expect(getProjectPersistenceId({ kind: "browser", name: "Book" })).toBe(
-      "browser:Book",
+    expect(getProjectPersistenceId({ kind: "browser", name: "Book", id: "book-1" })).toBe(
+      "browser:book-1",
     );
   });
 

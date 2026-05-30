@@ -32,8 +32,9 @@ export function useProjectKeyboardShortcuts({
       }
 
       const key = event.key.toLowerCase();
+      const isNextFileShortcut = key === "tab" || (event.altKey && key === "arrowright");
 
-      if (key === "tab") {
+      if (isNextFileShortcut) {
         event.preventDefault();
 
         if (!isBusy) {

@@ -24,6 +24,7 @@ function renderPolling(props: Partial<Parameters<typeof useProjectPolling>[0]> =
     scanBrowserFolderForChanges: vi.fn<() => Promise<ProjectFile[]>>(),
     setProjectError: vi.fn(),
     setProjectFiles: vi.fn(),
+    handleMissingActiveFile: vi.fn(),
   };
   const mergedProps = { ...defaultProps, ...props };
 
@@ -68,7 +69,7 @@ describe("useProjectPolling", () => {
       .fn()
       .mockResolvedValue([{ relativePath: "browser-note.md" }]);
     const props = renderPolling({
-      projectSource: { kind: "browser", name: "Book" },
+      projectSource: { kind: "browser", name: "Book", id: "browser-book" },
       projectFilesRef: { current: [] },
       scanBrowserFolderForChanges,
     });
@@ -84,7 +85,7 @@ describe("useProjectPolling", () => {
     ]);
   });
 
-  it("reports when the active file disappears from the project", async () => {
+  it("asks the workspace to recover when the active file disappears", async () => {
     scanProjectFolderMock.mockResolvedValueOnce([{ relativePath: "other.md" }]);
     const props = renderPolling();
 
@@ -92,9 +93,9 @@ describe("useProjectPolling", () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
 
-    expect(props.setProjectError).toHaveBeenCalledWith(
-      "The active file no longer exists in the project folder.",
-    );
+    expect(props.handleMissingActiveFile).toHaveBeenCalledWith([
+      { relativePath: "other.md" },
+    ]);
   });
 
   it("does not start a new poll while one is already running", async () => {
@@ -145,15 +146,18 @@ describe("useProjectPolling", () => {
 
   it("cleans up the interval when unmounted", () => {
     const clearIntervalSpy = vi.spyOn(window, "clearInterval");
-    const { unmount } = renderHook(() => useProjectPolling({
-      activeFilePathRef: { current: null },
-      isPollingProjectRef: { current: false },
-      projectFilesRef: { current: [] },
-      projectSource: { kind: "tauri", path: "/notes/book" },
-      scanBrowserFolderForChanges: vi.fn(),
-      setProjectError: vi.fn(),
-      setProjectFiles: vi.fn(),
-    }));
+    const { unmount } = renderHook(() =>
+      useProjectPolling({
+        activeFilePathRef: { current: null },
+        isPollingProjectRef: { current: false },
+        projectFilesRef: { current: [] },
+        projectSource: { kind: "tauri", path: "/notes/book" },
+        scanBrowserFolderForChanges: vi.fn(),
+        handleMissingActiveFile: vi.fn(),
+        setProjectError: vi.fn(),
+        setProjectFiles: vi.fn(),
+      }),
+    );
 
     unmount();
 

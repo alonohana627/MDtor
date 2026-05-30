@@ -7,7 +7,7 @@ function elementType(node: unknown) {
 }
 
 function elementProps(node: unknown) {
-  return isValidElement(node) ? node.props : undefined;
+  return isValidElement<Record<string, unknown>>(node) ? node.props : undefined;
 }
 
 describe("renderInlineMarkdown", () => {
@@ -45,6 +45,23 @@ describe("renderInlineMarkdown", () => {
       href: "https://tauri.app",
       rel: "noreferrer",
       target: "_blank",
+    });
+  });
+
+  it("renders unsafe links as inert text", () => {
+    const nodes = renderInlineMarkdown("[Bad](javascript:alert)");
+
+    expect(elementType(nodes[1])).toBe("span");
+    expect(elementProps(nodes[1])).toMatchObject({ children: "Bad" });
+    expect(elementProps(nodes[1])?.href).toBeUndefined();
+  });
+
+  it("allows mailto links", () => {
+    const nodes = renderInlineMarkdown("[Email](mailto:hello@example.com)");
+
+    expect(elementType(nodes[1])).toBe("a");
+    expect(elementProps(nodes[1])).toMatchObject({
+      href: "mailto:hello@example.com",
     });
   });
 

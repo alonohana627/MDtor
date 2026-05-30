@@ -423,6 +423,7 @@ describe("useProjectWorkspace", () => {
     isBrowserProjectFolderPickerSupportedMock.mockReturnValue(true);
     const directoryHandle = { name: "Browser Book" } as FileSystemDirectoryHandle;
     const browserProject = {
+      id: "browser-book-1",
       name: "Browser Book",
       files: [{ relativePath: "browser.md" }],
       fileHandles: new Map(),
@@ -439,6 +440,7 @@ describe("useProjectWorkspace", () => {
     expect(result.current.projectSource).toEqual({
       kind: "browser",
       name: "Browser Book",
+      id: "browser-book-1",
     });
     expect(result.current.activeFilePath).toBe("browser.md");
     expect(result.current.markdown).toBe("# Browser");
@@ -479,6 +481,7 @@ describe("useProjectWorkspace", () => {
       requestPermission: vi.fn().mockResolvedValue("granted"),
     } as unknown as FileSystemDirectoryHandle;
     const browserProject = {
+      id: "browser-book-1",
       name: "Browser Book",
       files: [{ relativePath: "browser.md" }],
       fileHandles: new Map([["browser.md", {} as never]]),
@@ -504,7 +507,7 @@ describe("useProjectWorkspace", () => {
                 get: () => {
                   const readRequest = {
                     error: null,
-                    result: directoryHandle,
+                    result: { id: "browser-book-1", directoryHandle },
                     onerror: null,
                     onsuccess: null,
                   };
@@ -538,6 +541,7 @@ describe("useProjectWorkspace", () => {
       expect(result.current.projectSource).toEqual({
         kind: "browser",
         name: "Browser Book",
+        id: "browser-book-1",
       });
     });
     expect(result.current.activeFilePath).toBe("browser.md");

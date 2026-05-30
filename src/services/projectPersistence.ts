@@ -5,6 +5,11 @@ const DB_VERSION = 1;
 const STORE_NAME = "project-handles";
 const LAST_BROWSER_DIRECTORY_KEY = "last-browser-directory";
 
+export type PersistedBrowserDirectory = {
+  id: string;
+  directoryHandle: FileSystemDirectoryHandle;
+};
+
 export function saveLastTauriProjectPath(projectPath: string) {
   window.localStorage.setItem(LAST_TAURI_PROJECT_PATH_KEY, projectPath);
 }
@@ -86,14 +91,27 @@ async function setProjectStateDbValue<T>(key: string, value: T) {
   });
 }
 
+function isPersistedBrowserDirectory(value: unknown): value is PersistedBrowserDirectory {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "directoryHandle" in value
+  );
+}
+
 export async function saveLastBrowserDirectoryHandle(
   directoryHandle: FileSystemDirectoryHandle,
+  id: string,
 ) {
   if (!window.indexedDB) {
     return;
   }
 
-  await setProjectStateDbValue(LAST_BROWSER_DIRECTORY_KEY, directoryHandle);
+  await setProjectStateDbValue(LAST_BROWSER_DIRECTORY_KEY, {
+    id,
+    directoryHandle,
+  });
 }
 
 export async function loadLastBrowserDirectoryHandle() {
@@ -101,17 +119,24 @@ export async function loadLastBrowserDirectoryHandle() {
     return null;
   }
 
-  const directoryHandle = await getProjectStateDbValue<FileSystemDirectoryHandle>(
-    LAST_BROWSER_DIRECTORY_KEY,
-  );
+  const persistedValue = await getProjectStateDbValue<
+    FileSystemDirectoryHandle | PersistedBrowserDirectory
+  >(LAST_BROWSER_DIRECTORY_KEY);
 
-  if (!directoryHandle) {
+  if (!persistedValue) {
     return null;
   }
+
+  const directoryHandle = isPersistedBrowserDirectory(persistedValue)
+    ? persistedValue.directoryHandle
+    : persistedValue;
+  const id = isPersistedBrowserDirectory(persistedValue)
+    ? persistedValue.id
+    : directoryHandle.name;
 
   const permission = await directoryHandle.requestPermission?.({
     mode: "readwrite",
   });
 
-  return permission === "denied" ? null : directoryHandle;
+  return permission === "denied" ? null : { id, directoryHandle };
 }

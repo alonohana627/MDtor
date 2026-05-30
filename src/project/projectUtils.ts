@@ -12,7 +12,7 @@ export function getProjectLabel(projectSource: ProjectSource | null) {
 }
 
 export function getProjectPersistenceId(source: ProjectSource) {
-  return source.kind === "tauri" ? `tauri:${source.path}` : `browser:${source.name}`;
+  return source.kind === "tauri" ? `tauri:${source.path}` : `browser:${source.id}`;
 }
 
 export function normalizeNewFilePath(input: string) {

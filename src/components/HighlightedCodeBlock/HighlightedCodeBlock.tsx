@@ -1,6 +1,10 @@
 import { type CSSProperties, useEffect, useState } from "react";
-import { type BundledLanguage, codeToTokens } from "shiki";
 import { type Theme } from "../../types";
+import {
+  highlightCodeToTokens,
+  isSupportedCodeLanguage,
+  type CodeHighlightTheme,
+} from "../../services/codeHighlighter";
 
 type HighlightedCodeBlockProps = {
   code: string;
@@ -17,8 +21,8 @@ type CodeToken = {
 
 type HighlightedLine = CodeToken[];
 
-const shikiThemes: Record<Theme, "github-light" | "github-dark"> = {
-  light: "github-dark",
+const shikiThemes: Record<Theme, CodeHighlightTheme> = {
+  light: "github-light",
   dark: "github-dark",
 };
 
@@ -76,11 +80,13 @@ export function HighlightedCodeBlock({
       setLines(createPlainLines(code));
       setResolvedLanguage(lang || "text");
 
+      if (!isSupportedCodeLanguage(lang)) {
+        setResolvedLanguage("text");
+        return;
+      }
+
       try {
-        const result = await codeToTokens(code, {
-          lang: lang as BundledLanguage,
-          theme: shikiThemes[theme],
-        });
+        const result = await highlightCodeToTokens(code, lang, shikiThemes[theme]);
 
         if (!isCancelled) {
           setLines(result.tokens);

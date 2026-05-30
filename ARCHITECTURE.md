@@ -20,8 +20,9 @@ React UI
   sidebar, editor, and preview panes.
 - `src/components/`: presentational React components for the editor, preview,
   sidebar, theme toggle, code blocks, and Markdown block rendering.
-- `src/hooks/`: workflow hooks that coordinate project state, polling, and
-  keyboard shortcuts.
+- `src/hooks/`: workflow hooks that coordinate project state, polling, keyboard
+  shortcuts, project lifecycle, file operations, and shared workspace state
+  helpers.
 - `src/services/`: IO boundaries for Tauri commands, browser filesystem handles,
   and local persistence.
 - `src/project/`: project source types and pure helper functions.
@@ -58,22 +59,33 @@ It owns:
 - create/switch/save/delete operations
 - last project and last active file restoration
 
-Supporting hooks keep smaller concerns out of the workspace hook:
+Supporting hooks and helper modules keep smaller concerns out of the workspace
+hook:
 
 - `useProjectPolling`: rescans the open project every second and reconciles
-  external file changes with the current sidebar order.
+  external file changes with the current sidebar order. If the active file was
+  deleted outside the app, the workspace switches to the next available file or
+  clears the editor when no files remain.
 - `useProjectKeyboardShortcuts`: handles `Ctrl` / `Cmd` project shortcuts.
+- `useProjectWorkspaceActions`: exposes UI actions as callbacks.
+- `workspaceCore`: shared load/save/read/persistence primitives.
+- `workspaceFileOperations`: create, delete, switch, reorder, and active-file
+  fallback behavior.
+- `workspaceProjectLifecycle`: open-folder and restore-project flows.
 
 ## Project Sources
 
 The app supports two project source kinds:
 
 ```ts
-type ProjectSource = { kind: "tauri"; path: string } | { kind: "browser"; name: string };
+type ProjectSource =
+  | { kind: "tauri"; path: string }
+  | { kind: "browser"; name: string; id: string };
 ```
 
 Tauri projects use native folder paths and Rust commands. Browser projects use a
-`FileSystemDirectoryHandle` and a map of writable file handles.
+generated project id, a `FileSystemDirectoryHandle`, and a map of writable file
+handles.
 
 Browser folder opening is only available when `window.showDirectoryPicker`
 exists. Firefox does not expose writable local folder access for web apps, so the
@@ -98,10 +110,13 @@ and deletion.
 
 - last Tauri project path in `localStorage`
 - last active file per project in `localStorage`
-- last browser directory handle in IndexedDB when the browser allows it
+- last browser directory handle and generated browser project id in IndexedDB
+  when the browser allows it
 
 The browser directory handle persistence is best effort. If permission cannot be
-restored, the app still runs and the user can open a folder manually.
+restored, the app still runs and the user can open a folder manually. The
+generated browser project id keeps active-file persistence from colliding when
+different browser-opened folders share the same display name.
 
 ## Markdown Pipeline
 
@@ -118,6 +133,12 @@ markdown string
 Inline Markdown rendering happens after block parsing. Editor highlighting uses a
 separate tokenization path because the editor remains a native `<textarea>` for
 selection, typing, paste, undo, and keyboard behavior.
+
+Inline links are allowlisted before rendering. Only `http:`, `https:`, and
+`mailto:` targets become anchors; unsupported schemes render as inert text.
+
+Tauri also defines a CSP in `src-tauri/tauri.conf.json` so the desktop webview
+does not run with CSP disabled.
 
 See [src/markdown/README.md](src/markdown/README.md) for the parser details.
 
@@ -140,11 +161,11 @@ with mocked Tauri and browser service boundaries so the tests stay deterministic
 Local coverage can be checked with `npm run test:coverage`. Coverage reports are
 written to `coverage/` for local inspection only; CI intentionally runs the
 normal test suite without coverage. The local coverage command enforces global
-thresholds of 90% statements, 80% branches, 90% functions, and 90% lines.
+thresholds of 90% statements, 90% branches, 90% functions, and 90% lines.
 
 ## Build Notes
 
-Shiki provides broad syntax highlighting support. The current integration loads
-enough language/theme code that Vite may warn about large chunks during
-production builds. This is not a correctness issue, but future work can reduce
-bundle size by loading a curated set of languages and themes.
+Shiki syntax highlighting is isolated behind `src/services/codeHighlighter.ts`.
+It uses a curated lazy-loaded language/theme set instead of the full Shiki
+bundle. C++ remains the largest optional grammar chunk, so Vite's local warning
+threshold is set high enough for that intentional lazy chunk.

@@ -24,6 +24,7 @@ the last opened project and active file.
   Access API.
 - Markdown file creation, right-click deletion, manual sidebar ordering, and
   automatic folder rescans while a project is open.
+- Active-file recovery when the currently open file is removed outside the app.
 - Last-opened project folder and last-active-file restore.
 - Keyboard shortcuts for common project workflows.
 
@@ -42,13 +43,14 @@ the Tauri desktop app for native folder access.
 
 ## Shortcuts
 
-| Shortcut               | Action                                     |
-| ---------------------- | ------------------------------------------ |
-| `Ctrl+S` / `Cmd+S`     | Save the active Markdown file              |
-| `Ctrl+O` / `Cmd+O`     | Open a project folder                      |
-| `Ctrl+N` / `Cmd+N`     | Create a Markdown file in the open project |
-| `Ctrl+P` / `Cmd+P`     | Open the quick file switcher               |
-| `Ctrl+Tab` / `Cmd+Tab` | Switch to the next Markdown file           |
+| Shortcut                                  | Action                                     |
+| ----------------------------------------- | ------------------------------------------ |
+| `Ctrl+S` / `Cmd+S`                        | Save the active Markdown file              |
+| `Ctrl+O` / `Cmd+O`                        | Open a project folder                      |
+| `Ctrl+N` / `Cmd+N`                        | Create a Markdown file in the open project |
+| `Ctrl+P` / `Cmd+P`                        | Open the quick file switcher               |
+| `Ctrl+Tab` / `Cmd+Tab`                    | Switch to the next Markdown file           |
+| `Ctrl+Alt+Right` / `Cmd+Option+Right`     | Browser-safe alternate next-file shortcut  |
 
 ## Markdown Support
 
@@ -71,6 +73,11 @@ Supported inline syntax:
 - Inline code: `` `code` ``
 - Links: `[label](https://example.com)`
 - Hard line breaks using two trailing spaces before a newline
+
+Link handling:
+
+- Preview links only render as clickable links for `http:`, `https:`, and
+  `mailto:` targets. Other schemes are rendered as inert text.
 
 Known limitations:
 
@@ -158,11 +165,10 @@ npm run test:coverage
 
 Coverage output is for local inspection only. It writes reports to `coverage/`,
 which is ignored by Git and is not part of CI. The local coverage command enforces
-global thresholds of 90% statements, 80% branches, 90% functions, and 90% lines.
+global thresholds of 90% statements, 90% branches, 90% functions, and 90% lines.
 
 ## Notes
 
-Shiki currently loads broad language/theme support, which can produce large build
-chunks. Vite may warn about chunk size during `npm run build`. That is expected
-for the current implementation and can be optimized later by loading a curated
-language/theme set.
+Shiki uses a curated lazy-loaded language/theme set for preview code blocks.
+The C++ grammar is still relatively large, but it is isolated from the main app
+bundle.
