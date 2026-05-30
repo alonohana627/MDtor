@@ -13,6 +13,7 @@ type ProjectPollingParams = {
   projectFilesRef: ValueRef<ProjectFile[]>;
   projectSource: ProjectSource | null;
   scanBrowserFolderForChanges: () => Promise<ProjectFile[]>;
+  handleMissingActiveFile: (files: ProjectFile[]) => Promise<void>;
   setProjectError: (error: string) => void;
   setProjectFiles: (files: ProjectFile[]) => void;
 };
@@ -23,6 +24,7 @@ export function useProjectPolling({
   projectFilesRef,
   projectSource,
   scanBrowserFolderForChanges,
+  handleMissingActiveFile,
   setProjectError,
   setProjectFiles,
 }: ProjectPollingParams) {
@@ -53,7 +55,7 @@ export function useProjectPolling({
           activeFilePathRef.current &&
           !nextFiles.some((file) => file.relativePath === activeFilePathRef.current)
         ) {
-          setProjectError("The active file no longer exists in the project folder.");
+          await handleMissingActiveFile(nextFiles);
         }
       } catch (error) {
         setProjectError(error instanceof Error ? error.message : String(error));
@@ -74,6 +76,7 @@ export function useProjectPolling({
     projectFilesRef,
     projectSource,
     scanBrowserFolderForChanges,
+    handleMissingActiveFile,
     setProjectError,
     setProjectFiles,
   ]);

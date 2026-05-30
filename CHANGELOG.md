@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.2
+
+- Further split project workspace behavior into action and helper modules and set the local coverage thresholds to 90% across statements, branches, functions, and lines.
+- Split workspace helper behavior into focused core, file-operation, lifecycle, and type modules.
+- Added Markdown link URL allowlisting and a Tauri CSP so unsafe link schemes are not rendered as clickable anchors.
+- Fixed browser folder picker cancellation so it behaves like a no-op instead of surfacing an error.
+- Fixed project polling so an externally deleted active file switches to a fallback file or clears the editor state.
+- Added a browser-safe `Ctrl+Alt+Right` / `Cmd+Option+Right` next-file shortcut alongside `Ctrl+Tab` / `Cmd+Tab`.
+- Fixed light-mode code block highlighting to use the light Shiki theme.
+- Replaced the full Shiki bundle import with a curated lazy-loaded language/theme highlighter.
+- Disabled the open-folder button while workspace actions are busy.
+- Added generated browser project ids so active-file persistence does not collide for folders with the same display name.
+- Aligned package, Cargo, Tauri, lockfile, and changelog versions at `0.2.2`.
+
 ## 0.2.1
 
 ### Features

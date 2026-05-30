@@ -8,5 +8,6 @@ Update these files manually:
 - `src-tauri/Cargo.toml`
 - `src-tauri/Cargo.lock`
 - `src-tauri/tauri.conf.json`
+- `CHANGELOG.md`
 
 Tag convention: `x.y.z`

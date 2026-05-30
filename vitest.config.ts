@@ -9,6 +9,12 @@ export default defineConfig({
       provider: "v8",
       reportsDirectory: "coverage",
       reporter: ["text", "html", "lcov"],
+      thresholds: {
+        statements: 90,
+        branches: 90,
+        functions: 90,
+        lines: 90,
+      },
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
         "src/main.tsx",
@@ -16,7 +22,7 @@ export default defineConfig({
         "src/**/index.ts",
         "src/**/types.ts",
         "src/project/projectTypes.ts",
-      ]
+      ],
     },
   },
 });
