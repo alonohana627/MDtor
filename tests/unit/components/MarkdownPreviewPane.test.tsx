@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MarkdownPreviewPane } from "../../../src/components/MarkdownPreviewPane";
@@ -5,7 +6,12 @@ import { MarkdownPreviewPane } from "../../../src/components/MarkdownPreviewPane
 describe("MarkdownPreviewPane", () => {
   it("renders a preview pane with parsed markdown content", () => {
     render(
-      <MarkdownPreviewPane markdown="# Rendered title" currentLine={1} theme="light" />,
+      <MarkdownPreviewPane
+        markdown="# Rendered title"
+        currentLine={1}
+        theme="light"
+        direction={"ltr"}
+      />,
     );
 
     expect(

@@ -8,6 +8,14 @@ type BrowserDirectoryPickerOptions = {
   startIn?: WellKnownDirectory | FileSystemHandle;
 };
 
+type BrowserSaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+};
+
 interface FileSystemDirectoryHandle {
   entries(): AsyncIterableIterator<
     [string, FileSystemDirectoryHandle | FileSystemFileHandle]
@@ -28,4 +36,7 @@ interface Window {
   showDirectoryPicker?: (
     options?: BrowserDirectoryPickerOptions,
   ) => Promise<FileSystemDirectoryHandle>;
+  showSaveFilePicker?: (
+    options?: BrowserSaveFilePickerOptions,
+  ) => Promise<FileSystemFileHandle>;
 }

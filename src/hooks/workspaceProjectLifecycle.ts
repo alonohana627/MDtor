@@ -7,8 +7,10 @@ import {
   clearLastTauriProjectPath,
   loadLastBrowserDirectoryHandle,
   loadLastTauriProjectPath,
+  removeRecentProject,
   saveLastBrowserDirectoryHandle,
   saveLastTauriProjectPath,
+  saveRecentProject,
 } from "../services/projectPersistence";
 import { scanProjectFolder } from "../services/projectFiles";
 import { loadProjectState, toProjectErrorMessage } from "./workspaceCore";
@@ -30,6 +32,7 @@ type RestoreProjectParams = {
     | "setBrowserDirectoryHandle"
     | "setBrowserFileHandles"
     | "setProjectError"
+    | "setRecentProjects"
   >;
 };
 
@@ -73,6 +76,13 @@ export async function openWorkspaceFolder({
       focusEditor: effects.focusEditor,
     });
     saveLastTauriProjectPath(selectedPath);
+    effects.setRecentProjects?.(
+      saveRecentProject({
+        kind: "tauri",
+        id: selectedPath,
+        label: selectedPath,
+      }),
+    );
     return;
   }
 
@@ -110,6 +120,72 @@ export async function openWorkspaceFolder({
   ).catch(() => {
     // Browser handle persistence is best effort; opening the folder still succeeded.
   });
+  effects.setRecentProjects?.(
+    saveRecentProject({
+      kind: "browser",
+      id: browserProject.id,
+      label: `${browserProject.name} (browser)`,
+    }),
+  );
+}
+
+export async function openRecentWorkspaceProject({
+  recentProject,
+  refs,
+  state,
+  effects,
+}: {
+  recentProject: { kind: "tauri" | "browser"; id: string; label: string };
+  refs: WorkspaceRefs;
+  state: WorkspaceState;
+  effects: WorkspaceEffects;
+}) {
+  if (recentProject.kind === "tauri") {
+    try {
+      await loadProjectState({
+        source: { kind: "tauri", path: recentProject.id },
+        files: await scanProjectFolder(recentProject.id),
+        refs,
+        state,
+        focusEditor: effects.focusEditor,
+      });
+      saveLastTauriProjectPath(recentProject.id);
+      effects.setRecentProjects?.(saveRecentProject(recentProject));
+    } catch (error) {
+      effects.setRecentProjects?.(removeRecentProject(recentProject.id));
+      throw error;
+    }
+
+    return;
+  }
+
+  const persistedDirectory = await loadLastBrowserDirectoryHandle();
+
+  if (!persistedDirectory || persistedDirectory.id !== recentProject.id) {
+    effects.setRecentProjects?.(removeRecentProject(recentProject.id));
+    throw new Error("That browser project is no longer available.");
+  }
+
+  const browserProject = await scanBrowserProjectFolder(
+    persistedDirectory.directoryHandle,
+  );
+  effects.setBrowserDirectoryHandle(persistedDirectory.directoryHandle);
+  effects.setBrowserFileHandles(browserProject.fileHandles);
+  await loadProjectState({
+    source: {
+      kind: "browser",
+      name: persistedDirectory.directoryHandle.name,
+      id: persistedDirectory.id,
+    },
+    files: browserProject.files,
+    refs: {
+      ...refs,
+      browserFileHandles: browserProject.fileHandles,
+    },
+    state,
+    focusEditor: effects.focusEditor,
+  });
+  effects.setRecentProjects?.(saveRecentProject(recentProject));
 }
 
 export async function restoreWorkspaceProject({

@@ -13,6 +13,8 @@ import {
   findQuickSwitchFile,
   getNextProjectFilePath,
   openWorkspaceFolder,
+  openRecentWorkspaceProject,
+  renameWorkspaceFile,
   saveWorkspaceDocument,
   switchWorkspaceFile,
 } from "../../../src/hooks/useProjectWorkspaceHelpers";
@@ -39,6 +41,8 @@ vi.mock("../../../src/hooks/useProjectWorkspaceHelpers", async () => {
     findQuickSwitchFile: vi.fn(),
     getNextProjectFilePath: vi.fn(),
     openWorkspaceFolder: vi.fn(),
+    openRecentWorkspaceProject: vi.fn(),
+    renameWorkspaceFile: vi.fn(),
     saveWorkspaceDocument: vi.fn(),
     switchWorkspaceFile: vi.fn(),
   };
@@ -55,6 +59,8 @@ const deleteWorkspaceFileMock = vi.mocked(deleteWorkspaceFile);
 const findQuickSwitchFileMock = vi.mocked(findQuickSwitchFile);
 const getNextProjectFilePathMock = vi.mocked(getNextProjectFilePath);
 const openWorkspaceFolderMock = vi.mocked(openWorkspaceFolder);
+const openRecentWorkspaceProjectMock = vi.mocked(openRecentWorkspaceProject);
+const renameWorkspaceFileMock = vi.mocked(renameWorkspaceFile);
 const saveWorkspaceDocumentMock = vi.mocked(saveWorkspaceDocument);
 const switchWorkspaceFileMock = vi.mocked(switchWorkspaceFile);
 
@@ -79,6 +85,7 @@ function createParams(
     setProjectError: vi.fn(),
     setProjectFiles: vi.fn(),
     setProjectSource: vi.fn(),
+    setRecentProjects: vi.fn(),
     setSavedMarkdown: vi.fn(),
     ...overrides,
   };
@@ -94,6 +101,8 @@ describe("useProjectWorkspaceActions", () => {
     switchWorkspaceFileMock.mockResolvedValue(true);
     createWorkspaceFileMock.mockResolvedValue([{ relativePath: "created.md" }]);
     deleteWorkspaceFileMock.mockResolvedValue([{ relativePath: "chapter-02.md" }]);
+    openRecentWorkspaceProjectMock.mockResolvedValue(undefined);
+    renameWorkspaceFileMock.mockResolvedValue([{ relativePath: "renamed.md" }]);
     getNextProjectFilePathMock.mockReturnValue("chapter-02.md");
   });
 
@@ -203,6 +212,28 @@ describe("useProjectWorkspaceActions", () => {
     });
 
     expect(params.setProjectError).toHaveBeenCalledWith("open failed");
+  });
+
+  it("opens recent projects and removes inaccessible project errors", async () => {
+    const params = createParams();
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+    const recentProject = { kind: "tauri" as const, id: "/book", label: "/book" };
+
+    await act(async () => {
+      await result.current.openRecentProject(recentProject);
+    });
+
+    expect(openRecentWorkspaceProjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ recentProject }),
+    );
+
+    openRecentWorkspaceProjectMock.mockRejectedValueOnce(new Error("missing"));
+
+    await act(async () => {
+      await result.current.openRecentProject(recentProject);
+    });
+
+    expect(params.setProjectError).toHaveBeenCalledWith("missing");
   });
 
   it("returns early when switching files is unnecessary and reports switch errors", async () => {
@@ -439,5 +470,43 @@ describe("useProjectWorkspaceActions", () => {
     });
 
     expect(params.setProjectError).toHaveBeenCalledWith("delete failed");
+  });
+
+  it("renames files through a prompt and reports invalid names", async () => {
+    vi.spyOn(window, "prompt").mockReturnValueOnce("../bad.md");
+    const invalidParams = createParams();
+    const invalidHook = renderHook(() => useProjectWorkspaceActions(invalidParams));
+
+    await act(async () => {
+      await invalidHook.result.current.renameFile("chapter-01.md");
+    });
+
+    expect(invalidParams.setProjectError).toHaveBeenCalledWith(
+      "File names must be safe relative .md or .markdown paths.",
+    );
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("renamed");
+    const params = createParams();
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.renameFile("chapter-01.md");
+    });
+
+    expect(renameWorkspaceFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        oldRelativePath: "chapter-01.md",
+        newRelativePath: "renamed.md",
+      }),
+    );
+
+    renameWorkspaceFileMock.mockRejectedValueOnce(new Error("rename failed"));
+    vi.spyOn(window, "prompt").mockReturnValueOnce("renamed");
+
+    await act(async () => {
+      await result.current.renameFile("chapter-01.md");
+    });
+
+    expect(params.setProjectError).toHaveBeenCalledWith("rename failed");
   });
 });

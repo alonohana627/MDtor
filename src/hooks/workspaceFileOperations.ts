@@ -2,10 +2,12 @@ import { type ProjectSource } from "../project/projectTypes";
 import {
   createBrowserProjectFile,
   deleteBrowserProjectFile,
+  renameBrowserProjectFile,
 } from "../services/browserProjectFiles";
 import {
   createProjectFile,
   deleteProjectFile,
+  renameProjectFile,
   type ProjectFile,
 } from "../services/projectFiles";
 import { readWorkspaceDocument, rememberActiveProjectFile } from "./workspaceCore";
@@ -53,6 +55,14 @@ type DeleteFileParams = {
     | "setSavedMarkdown"
   >;
   focusEditor: () => void;
+};
+
+type RenameFileParams = {
+  oldRelativePath: string;
+  newRelativePath: string;
+  refs: WorkspaceRefs;
+  source: ProjectSource;
+  state: Pick<WorkspaceState, "setActiveFile" | "setProjectFiles">;
 };
 
 type MissingActiveFileParams = {
@@ -255,6 +265,47 @@ export async function deleteWorkspaceFile({
     state,
     focusEditor,
   });
+
+  return nextFiles;
+}
+
+export async function renameWorkspaceFile({
+  oldRelativePath,
+  newRelativePath,
+  refs,
+  source,
+  state,
+}: RenameFileParams) {
+  if (oldRelativePath === newRelativePath) {
+    return refs.projectFiles;
+  }
+
+  if (refs.projectFiles.some((file) => file.relativePath === newRelativePath)) {
+    throw new Error("A file already exists at that path.");
+  }
+
+  if (source.kind === "tauri") {
+    await renameProjectFile(source.path, oldRelativePath, newRelativePath);
+  } else if (refs.browserDirectoryHandle) {
+    await renameBrowserProjectFile(
+      refs.browserDirectoryHandle,
+      refs.browserFileHandles,
+      oldRelativePath,
+      newRelativePath,
+    );
+  } else {
+    throw new Error("Open a browser project folder before renaming files.");
+  }
+
+  const nextFiles = refs.projectFiles.map((file) =>
+    file.relativePath === oldRelativePath ? { relativePath: newRelativePath } : file,
+  );
+  state.setProjectFiles(nextFiles);
+
+  if (refs.activeFilePath === oldRelativePath) {
+    state.setActiveFile(newRelativePath);
+    rememberActiveProjectFile(source, newRelativePath);
+  }
 
   return nextFiles;
 }

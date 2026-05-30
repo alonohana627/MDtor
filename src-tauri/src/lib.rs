@@ -8,6 +8,13 @@ struct ProjectFile {
     relative_path: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectAsset {
+    mime_type: String,
+    bytes: Vec<u8>,
+}
+
 type CommandResult<T> = Result<T, String>;
 
 fn normalize_project_root(project_path: &str) -> CommandResult<PathBuf> {
@@ -83,6 +90,35 @@ fn is_markdown_file(path: &Path) -> bool {
         .and_then(|extension| extension.to_str())
         .map(|extension| matches!(extension.to_ascii_lowercase().as_str(), "md" | "markdown"))
         .unwrap_or(false)
+}
+
+fn is_image_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn get_image_mime_type(path: &Path) -> String {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        _ => "application/octet-stream",
+    }
+    .to_string()
 }
 
 fn collect_markdown_files(
@@ -180,6 +216,75 @@ fn delete_project_file(project_path: String, relative_path: String) -> CommandRe
     fs::remove_file(path).map_err(|error| format!("Could not delete Markdown file: {error}"))
 }
 
+#[tauri::command]
+fn rename_project_file(
+    project_path: String,
+    old_relative_path: String,
+    new_relative_path: String,
+) -> CommandResult<()> {
+    let old_path = resolve_project_file(&project_path, &old_relative_path)?;
+    let new_path = resolve_new_project_file(&project_path, &new_relative_path)?;
+
+    if !is_markdown_file(&old_path) || !is_markdown_file(&new_path) {
+        return Err("Only Markdown files can be renamed.".to_string());
+    }
+
+    if new_path.exists() {
+        return Err("A file already exists at that path.".to_string());
+    }
+
+    if let Some(parent) = new_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Could not create Markdown file folder: {error}"))?;
+    }
+
+    fs::rename(old_path, new_path).map_err(|error| format!("Could not rename file: {error}"))
+}
+
+#[tauri::command]
+fn read_project_asset(
+    project_path: String,
+    active_file_path: String,
+    asset_path: String,
+) -> CommandResult<ProjectAsset> {
+    let root = normalize_project_root(&project_path)?;
+    let active_file = resolve_project_file(&project_path, &active_file_path)?;
+    let asset_relative = Path::new(&asset_path);
+
+    if asset_relative.is_absolute()
+        || asset_relative
+            .components()
+            .any(|component| matches!(component, Component::Prefix(_)))
+    {
+        return Err("Only relative local image paths can be previewed.".to_string());
+    }
+
+    let active_parent = active_file.parent().unwrap_or(&root);
+    let asset_full_path = active_parent.join(asset_relative);
+    let canonical_asset_path = asset_full_path
+        .canonicalize()
+        .map_err(|error| format!("Could not resolve image file: {error}"))?;
+
+    if !canonical_asset_path.starts_with(&root) {
+        return Err("Image path must stay inside the project folder.".to_string());
+    }
+
+    if !is_image_file(&canonical_asset_path) {
+        return Err("Only local image files can be previewed.".to_string());
+    }
+
+    let mime_type = get_image_mime_type(&canonical_asset_path);
+    let bytes =
+        fs::read(canonical_asset_path).map_err(|error| format!("Could not read image: {error}"))?;
+
+    Ok(ProjectAsset { mime_type, bytes })
+}
+
+#[tauri::command]
+fn save_export_file(path: String, bytes: Vec<u8>) -> CommandResult<()> {
+    fs::write(path, bytes).map_err(|error| format!("Could not save export file: {error}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -190,7 +295,10 @@ pub fn run() {
             read_project_file,
             save_project_file,
             create_project_file,
-            delete_project_file
+            delete_project_file,
+            rename_project_file,
+            read_project_asset,
+            save_export_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

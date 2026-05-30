@@ -45,7 +45,7 @@ textarea {
   --border-strong: #cfd6dd;
   --editor-bg: #f8fafb;
   --editor-gutter-bg: #eef2f6;
-  --editor-line: #eef2f6;
+  --editor-line-tile: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1'%20height='24'%20viewBox='0%200%201%2024'%3E%3Cpath%20d='M0%2023.5H1'%20stroke='%23eef2f6'%20shape-rendering='crispEdges'/%3E%3C/svg%3E");
   --editor-text: #17202a;
   --preview-bg: #ffffff;
   --quote-bg: #f6f8fa;
@@ -70,10 +70,149 @@ textarea {
   --token-link-url: #0f766e;
 
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(170px, 220px);
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
+  overflow: hidden;
   color: var(--text);
   background: var(--app-bg);
+}
+
+.app-shell[data-zen="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app-shell[data-zen="true"] .project-sidebar,
+.app-shell[data-zen="true"] .document-outline,
+.app-shell[data-zen="true"] .pane-header {
+  display: none;
+}
+
+.writer-workspace {
+  --editor-split: 50%;
+
+  display: grid;
+  grid-template-columns:
+    minmax(260px, var(--editor-split)) 8px
+    minmax(260px, calc(100% - var(--editor-split)));
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell[data-zen="true"] .writer-workspace {
+  min-height: 100vh;
+}
+
+.top-controls,
+.writer-toolbar,
+.zen-exit-button {
+  position: fixed;
+  z-index: 11;
+  top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.top-controls {
+  right: 14px;
+  gap: 6px;
+}
+
+.writer-toolbar,
+.zen-exit-button {
+  left: 50%;
+  gap: 6px;
+  transform: translateX(-50%);
+}
+
+.writer-toolbar {
+  max-width: min(680px, calc(100vw - 220px));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px;
+  background: var(--button-bg);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.writer-toolbar button,
+.scroll-sync-toggle,
+.zen-exit-button {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--button-text);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.writer-toolbar button:hover,
+.scroll-sync-toggle:hover,
+.scroll-sync-toggle:focus-visible,
+.zen-exit-button:hover {
+  border-color: var(--focus);
+}
+
+.writer-toolbar button[aria-pressed="true"],
+.scroll-sync-toggle[aria-pressed="true"] {
+  color: var(--preview-bg);
+  background: var(--focus);
+}
+
+.scroll-sync-toggle {
+  min-width: 52px;
+  height: 36px;
+  border-color: var(--border);
+  background: var(--button-bg);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.writer-stat {
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.split-resizer {
+  width: 8px;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  border: 0;
+  border-right: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+  padding: 0;
+  background: var(--app-bg);
+  cursor: col-resize;
+}
+
+.split-resizer:hover,
+.split-resizer:focus-visible {
+  background: var(--focus);
+  outline: 0;
+}
+
+.export-error {
+  position: fixed;
+  z-index: 12;
+  right: 14px;
+  bottom: 14px;
+  max-width: min(420px, calc(100vw - 28px));
+  margin: 0;
+  border: 1px solid var(--error);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--error);
+  background: var(--pane-bg);
+  box-shadow: 0 8px 24px var(--shadow);
+  font-size: 0.84rem;
 }
 
 .app-shell[data-theme="dark"] {
@@ -91,7 +230,7 @@ textarea {
   --border-strong: #424b57;
   --editor-bg: #12161c;
   --editor-gutter-bg: #1d232b;
-  --editor-line: #252c35;
+  --editor-line-tile: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1'%20height='24'%20viewBox='0%200%201%2024'%3E%3Cpath%20d='M0%2023.5H1'%20stroke='%23252c35'%20shape-rendering='crispEdges'/%3E%3C/svg%3E");
   --editor-text: #d8dee7;
   --preview-bg: #151a20;
   --quote-bg: #202731;
@@ -120,7 +259,10 @@ textarea {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--pane-bg);
 }
 
@@ -151,19 +293,65 @@ textarea {
 }
 
 @media (max-width: 760px) {
+  .top-controls {
+    top: 6px;
+    right: 8px;
+  }
+
+  .scroll-sync-toggle {
+    height: 34px;
+    min-width: 48px;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(50vh, 1fr) minmax(50vh, 1fr);
+    grid-template-rows: auto minmax(100vh, 1fr) auto;
+  }
+
+  .writer-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows:
+      minmax(260px, var(--editor-split)) 8px
+      minmax(260px, calc(100% - var(--editor-split)));
+    height: 100%;
+    min-height: 0;
+  }
+
+  .split-resizer {
+    width: 100%;
+    min-height: 8px;
+    border-top: 1px solid var(--border-strong);
+    border-right: 0;
+    border-bottom: 1px solid var(--border-strong);
+    border-left: 0;
+    cursor: row-resize;
+  }
+
+  .writer-toolbar {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    max-width: calc(100vw - 16px);
+    transform: none;
+    overflow-x: auto;
   }
 
   .pane {
-    min-height: 50vh;
+    min-height: 0;
+    height: auto;
   }
 
   .project-sidebar {
     min-height: 0;
     border-right: 0;
     border-bottom: 1px solid var(--border-strong);
+  }
+
+  .document-outline {
+    height: 40vh;
+    max-height: 40vh;
+    border-top: 1px solid var(--border-strong);
+    border-left: 0;
   }
 
   .project-file-list {

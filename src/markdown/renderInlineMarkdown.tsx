@@ -1,7 +1,13 @@
 import { Fragment, ReactNode } from "react";
+import { MarkdownImage } from "./MarkdownImage";
 
-const inlinePattern = /(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+const inlinePattern =
+  /(!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
 const safeLinkProtocols = new Set(["http:", "https:", "mailto:"]);
+
+type InlineRenderOptions = {
+  loadImage?: (src: string) => Promise<Blob>;
+};
 
 export function getSafeMarkdownLinkHref(href: string) {
   const trimmedHref = href.trim();
@@ -19,8 +25,27 @@ export function getSafeMarkdownLinkHref(href: string) {
   }
 }
 
-export function renderInlineMarkdown(text: string): ReactNode[] {
+export function renderInlineMarkdown(
+  text: string,
+  options: InlineRenderOptions = {},
+): ReactNode[] {
   return text.split(inlinePattern).flatMap((part, index) => {
+    const image = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (image) {
+      if (!options.loadImage) {
+        return <span key={index}>{image[1]}</span>;
+      }
+
+      return (
+        <MarkdownImage
+          key={index}
+          alt={image[1]}
+          src={image[2]}
+          loadImage={options.loadImage}
+        />
+      );
+    }
+
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (link) {
       const safeHref = getSafeMarkdownLinkHref(link[2]);

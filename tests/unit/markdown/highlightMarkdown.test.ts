@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { highlightMarkdown } from "../../../src/markdown/highlightMarkdown";
+import {
+  createMarkdownHighlightIndex,
+  highlightMarkdown,
+  highlightMarkdownRange,
+} from "../../../src/markdown/highlightMarkdown";
 
 describe("highlightMarkdown", () => {
   it("highlights heading markers separately from heading text", () => {
@@ -67,5 +71,23 @@ describe("highlightMarkdown", () => {
 
   it("preserves one empty plain token for blank lines", () => {
     expect(highlightMarkdown("")).toEqual([[{ type: "plain", text: "" }]]);
+  });
+
+  it("highlights a visible range without losing code-block state", () => {
+    const index = createMarkdownHighlightIndex("```ts\n# not heading\n```\n# Heading");
+
+    expect(highlightMarkdownRange(index, 2, 4)).toEqual([
+      [{ type: "code-text", text: "# not heading" }],
+      [
+        { type: "code-fence", text: "```" },
+        { type: "code-language", text: "" },
+        { type: "plain", text: "" },
+      ],
+      [
+        { type: "heading-marker", text: "#" },
+        { type: "plain", text: " " },
+        { type: "heading-text", text: "Heading" },
+      ],
+    ]);
   });
 });

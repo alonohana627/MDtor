@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:performance": "vitest run tests/performance",
+    "bench": "vitest bench"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

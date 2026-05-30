@@ -9,8 +9,11 @@ import {
 type HighlightedCodeBlockProps = {
   code: string;
   language: string;
-  isActive: boolean;
   theme: Theme;
+  sourceLine?: number;
+  blockIndex?: number;
+  sourceStartLine?: number;
+  sourceEndLine?: number;
 };
 
 type CodeToken = {
@@ -66,8 +69,11 @@ function getTokenStyle(token: CodeToken): CSSProperties {
 export function HighlightedCodeBlock({
   code,
   language,
-  isActive,
   theme,
+  sourceLine,
+  blockIndex,
+  sourceStartLine,
+  sourceEndLine,
 }: HighlightedCodeBlockProps) {
   const [lines, setLines] = useState<HighlightedLine[]>(() => createPlainLines(code));
   const [resolvedLanguage, setResolvedLanguage] = useState(language || "text");
@@ -108,7 +114,12 @@ export function HighlightedCodeBlock({
   }, [code, language, theme]);
 
   return (
-    <pre className={isActive ? "active-preview-block" : undefined}>
+    <pre
+      data-block-index={blockIndex}
+      data-source-line={sourceLine}
+      data-source-start-line={sourceStartLine}
+      data-source-end-line={sourceEndLine}
+    >
       {resolvedLanguage !== "text" ? (
         <span className="code-language-label">{resolvedLanguage}</span>
       ) : null}

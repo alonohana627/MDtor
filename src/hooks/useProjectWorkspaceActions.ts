@@ -6,7 +6,8 @@ import {
   type BrowserProjectFile,
 } from "../services/browserProjectFiles";
 import { type ProjectFile } from "../services/projectFiles";
-import { normalizeNewFilePath } from "../project/projectUtils";
+import { type RecentProject } from "../services/projectPersistence";
+import { normalizeProjectFilePath } from "../project/projectUtils";
 import { type ProjectSource } from "../project/projectTypes";
 import {
   applyActiveFileFallback,
@@ -15,6 +16,8 @@ import {
   findQuickSwitchFile,
   getNextProjectFilePath,
   openWorkspaceFolder,
+  openRecentWorkspaceProject,
+  renameWorkspaceFile,
   reorderProjectFiles,
   saveWorkspaceDocument,
   switchWorkspaceFile,
@@ -40,6 +43,7 @@ type WorkspaceActionsParams = {
   ) => void;
   setProjectSource: (source: ProjectSource | null) => void;
   setSavedMarkdown: (value: string) => void;
+  setRecentProjects: (projects: RecentProject[]) => void;
 };
 
 export function useProjectWorkspaceActions({
@@ -59,6 +63,7 @@ export function useProjectWorkspaceActions({
   setProjectFiles,
   setProjectSource,
   setSavedMarkdown,
+  setRecentProjects,
 }: WorkspaceActionsParams) {
   const saveActiveDocument = useCallback(
     async (content = markdown) => {
@@ -162,6 +167,7 @@ export function useProjectWorkspaceActions({
             browserFileHandlesRef.current = handles;
           },
           setProjectError,
+          setRecentProjects,
         },
       });
     } catch (error) {
@@ -185,7 +191,73 @@ export function useProjectWorkspaceActions({
     setProjectFiles,
     setProjectSource,
     setSavedMarkdown,
+    setRecentProjects,
   ]);
+
+  const openRecentProject = useCallback(
+    async (recentProject: RecentProject) => {
+      setIsBusy(true);
+      setProjectError(null);
+
+      try {
+        await saveActiveDocument();
+        await openRecentWorkspaceProject({
+          recentProject,
+          refs: {
+            activeFilePath: activeFilePathRef.current,
+            browserDirectoryHandle: browserDirectoryHandleRef.current,
+            browserFileHandles: browserFileHandlesRef.current,
+            projectFiles: projectFilesRef.current,
+            source: projectSource,
+          },
+          state: {
+            setActiveFile,
+            setCurrentLine,
+            setMarkdown,
+            setProjectFiles: (files) => {
+              projectFilesRef.current = files;
+              setProjectFiles(files);
+            },
+            setProjectSource,
+            setSavedMarkdown,
+          },
+          effects: {
+            focusEditor,
+            setBrowserDirectoryHandle: (handle) => {
+              browserDirectoryHandleRef.current = handle;
+            },
+            setBrowserFileHandles: (handles) => {
+              browserFileHandlesRef.current = handles;
+            },
+            setProjectError,
+            setRecentProjects,
+          },
+        });
+      } catch (error) {
+        setProjectError(toProjectErrorMessage(error));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [
+      activeFilePathRef,
+      browserDirectoryHandleRef,
+      browserFileHandlesRef,
+      focusEditor,
+      projectFilesRef,
+      projectSource,
+      saveActiveDocument,
+      setActiveFile,
+      setCurrentLine,
+      setIsBusy,
+      setMarkdown,
+      setProjectError,
+      setProjectFiles,
+      setProjectSource,
+      setRecentProjects,
+      setSavedMarkdown,
+    ],
+  );
 
   const switchFile = useCallback(
     async (relativePath: string) => {
@@ -260,7 +332,7 @@ export function useProjectWorkspaceActions({
     }
 
     const requestedPath = window.prompt("New Markdown file path", "untitled.md");
-    const relativePath = requestedPath ? normalizeNewFilePath(requestedPath) : null;
+    const relativePath = requestedPath ? normalizeProjectFilePath(requestedPath) : null;
 
     if (!relativePath) {
       return;
@@ -426,6 +498,59 @@ export function useProjectWorkspaceActions({
     ],
   );
 
+  const renameFile = useCallback(
+    async (relativePath: string) => {
+      if (!projectSource) {
+        return;
+      }
+
+      const requestedPath = window.prompt("Rename Markdown file", relativePath);
+      const nextPath = requestedPath ? normalizeProjectFilePath(requestedPath) : null;
+
+      if (!nextPath) {
+        setProjectError("File names must be safe relative .md or .markdown paths.");
+        return;
+      }
+
+      setIsBusy(true);
+      setProjectError(null);
+
+      try {
+        projectFilesRef.current = await renameWorkspaceFile({
+          oldRelativePath: relativePath,
+          newRelativePath: nextPath,
+          refs: {
+            activeFilePath: activeFilePathRef.current,
+            browserDirectoryHandle: browserDirectoryHandleRef.current,
+            browserFileHandles: browserFileHandlesRef.current,
+            projectFiles: projectFilesRef.current,
+            source: projectSource,
+          },
+          source: projectSource,
+          state: {
+            setActiveFile,
+            setProjectFiles,
+          },
+        });
+      } catch (error) {
+        setProjectError(toProjectErrorMessage(error));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [
+      activeFilePathRef,
+      browserDirectoryHandleRef,
+      browserFileHandlesRef,
+      projectFilesRef,
+      projectSource,
+      setActiveFile,
+      setIsBusy,
+      setProjectError,
+      setProjectFiles,
+    ],
+  );
+
   return {
     createNewFile,
     deleteFile,
@@ -434,6 +559,8 @@ export function useProjectWorkspaceActions({
     moveProjectFile,
     openProjectFolder,
     openQuickFileSwitcher,
+    openRecentProject,
+    renameFile,
     saveActiveDocument,
     scanBrowserFolderForChanges,
     switchFile,

@@ -1,5 +1,6 @@
 const LAST_TAURI_PROJECT_PATH_KEY = "mdtor:last-tauri-project-path";
 const LAST_ACTIVE_PROJECT_FILE_PREFIX = "mdtor:last-active-project-file:";
+const RECENT_PROJECTS_KEY = "mdtor:recent-projects";
 const DB_NAME = "mdtor-project-state";
 const DB_VERSION = 1;
 const STORE_NAME = "project-handles";
@@ -8,6 +9,12 @@ const LAST_BROWSER_DIRECTORY_KEY = "last-browser-directory";
 export type PersistedBrowserDirectory = {
   id: string;
   directoryHandle: FileSystemDirectoryHandle;
+};
+
+export type RecentProject = {
+  kind: "tauri" | "browser";
+  id: string;
+  label: string;
 };
 
 export function saveLastTauriProjectPath(projectPath: string) {
@@ -36,6 +43,50 @@ export function loadLastActiveProjectFile(projectId: string) {
 
 export function clearLastActiveProjectFile(projectId: string) {
   window.localStorage.removeItem(getLastActiveProjectFileKey(projectId));
+}
+
+function parseRecentProjects(value: string | null): RecentProject[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const projects = JSON.parse(value) as RecentProject[];
+
+    return Array.isArray(projects)
+      ? projects.filter(
+          (project) =>
+            (project.kind === "tauri" || project.kind === "browser") &&
+            typeof project.id === "string" &&
+            typeof project.label === "string",
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function loadRecentProjects() {
+  return parseRecentProjects(window.localStorage.getItem(RECENT_PROJECTS_KEY));
+}
+
+export function saveRecentProject(project: RecentProject) {
+  const nextProjects = [
+    project,
+    ...loadRecentProjects().filter((recentProject) => recentProject.id !== project.id),
+  ].slice(0, 8);
+
+  window.localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(nextProjects));
+  return nextProjects;
+}
+
+export function removeRecentProject(projectId: string) {
+  const nextProjects = loadRecentProjects().filter(
+    (recentProject) => recentProject.id !== projectId,
+  );
+
+  window.localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(nextProjects));
+  return nextProjects;
 }
 
 function openProjectStateDb() {

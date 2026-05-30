@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { starterMarkdown } from "../data/starterMarkdown";
 import {
+  readBrowserProjectAsset,
   isBrowserProjectFolderPickerSupported,
   type BrowserProjectFile,
 } from "../services/browserProjectFiles";
-import { type ProjectFile } from "../services/projectFiles";
+import { readProjectAsset, type ProjectFile } from "../services/projectFiles";
+import { loadRecentProjects, type RecentProject } from "../services/projectPersistence";
 import { type ProjectSource } from "../project/projectTypes";
 import { useProjectKeyboardShortcuts } from "./useProjectKeyboardShortcuts";
 import { useProjectPolling } from "./useProjectPolling";
@@ -24,6 +26,9 @@ export function useProjectWorkspace() {
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(() =>
+    loadRecentProjects(),
+  );
 
   const activeFilePathRef = useRef<string | null>(null);
   const browserFileHandlesRef = useRef(new Map<string, BrowserProjectFile>());
@@ -44,6 +49,35 @@ export function useProjectWorkspace() {
     setActiveFilePath(relativePath);
   }, []);
 
+  const loadProjectImage = useCallback(
+    async (assetPath: string) => {
+      if (!projectSource || !activeFilePathRef.current) {
+        throw new Error("Open a project file before previewing local images.");
+      }
+
+      if (projectSource.kind === "tauri") {
+        const asset = await readProjectAsset(
+          projectSource.path,
+          activeFilePathRef.current,
+          assetPath,
+        );
+
+        return new Blob([new Uint8Array(asset.bytes)], { type: asset.mimeType });
+      }
+
+      if (!browserDirectoryHandleRef.current) {
+        throw new Error("Open a browser project folder before previewing local images.");
+      }
+
+      return readBrowserProjectAsset(
+        browserDirectoryHandleRef.current,
+        activeFilePathRef.current,
+        assetPath,
+      );
+    },
+    [projectSource],
+  );
+
   const {
     createNewFile,
     deleteFile,
@@ -52,6 +86,8 @@ export function useProjectWorkspace() {
     moveProjectFile,
     openProjectFolder,
     openQuickFileSwitcher,
+    openRecentProject,
+    renameFile,
     scanBrowserFolderForChanges,
     switchFile,
     switchToNextFile,
@@ -71,6 +107,7 @@ export function useProjectWorkspace() {
     setProjectError,
     setProjectFiles,
     setProjectSource,
+    setRecentProjects,
     setSavedMarkdown,
   });
 
@@ -113,6 +150,7 @@ export function useProjectWorkspace() {
               browserFileHandlesRef.current = handles;
             },
             setProjectError,
+            setRecentProjects,
           },
         });
       } catch (error) {
@@ -162,12 +200,16 @@ export function useProjectWorkspace() {
     handleManualSave,
     isBusy,
     isDirty,
+    loadProjectImage,
     markdown,
     moveProjectFile,
     openProjectFolder,
+    openRecentProject,
     projectError,
     projectFiles,
     projectSource,
+    recentProjects,
+    renameFile,
     setCurrentLine,
     setMarkdown,
     switchFile,

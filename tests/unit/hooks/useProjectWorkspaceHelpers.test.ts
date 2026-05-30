@@ -6,21 +6,26 @@ import {
   loadLastActiveProjectFile,
   loadLastBrowserDirectoryHandle,
   loadLastTauriProjectPath,
+  removeRecentProject,
   saveLastActiveProjectFile,
   saveLastBrowserDirectoryHandle,
   saveLastTauriProjectPath,
+  saveRecentProject,
 } from "../../../src/services/projectPersistence";
 import {
   createBrowserProjectFile,
   deleteBrowserProjectFile,
   openBrowserProjectFolder,
   readBrowserProjectFile,
+  renameBrowserProjectFile,
   saveBrowserProjectFile,
+  scanBrowserProjectFolder,
 } from "../../../src/services/browserProjectFiles";
 import {
   createProjectFile,
   deleteProjectFile,
   readProjectFile,
+  renameProjectFile,
   saveProjectFile,
   scanProjectFolder,
 } from "../../../src/services/projectFiles";
@@ -33,8 +38,10 @@ import {
   handleRestoreWorkspaceError,
   loadProjectState,
   openWorkspaceFolder,
+  openRecentWorkspaceProject,
   readWorkspaceDocument,
   rememberActiveProjectFile,
+  renameWorkspaceFile,
   removeProjectFile,
   reorderProjectFiles,
   restoreWorkspaceProject,
@@ -52,6 +59,7 @@ vi.mock("../../../src/services/browserProjectFiles", () => ({
   deleteBrowserProjectFile: vi.fn(),
   openBrowserProjectFolder: vi.fn(),
   readBrowserProjectFile: vi.fn(),
+  renameBrowserProjectFile: vi.fn(),
   saveBrowserProjectFile: vi.fn(),
   saveLastBrowserDirectoryHandle: vi.fn(),
   scanBrowserProjectFolder: vi.fn(),
@@ -61,6 +69,7 @@ vi.mock("../../../src/services/projectFiles", () => ({
   createProjectFile: vi.fn(),
   deleteProjectFile: vi.fn(),
   readProjectFile: vi.fn(),
+  renameProjectFile: vi.fn(),
   saveProjectFile: vi.fn(),
   scanProjectFolder: vi.fn(),
 }));
@@ -71,9 +80,11 @@ vi.mock("../../../src/services/projectPersistence", () => ({
   loadLastActiveProjectFile: vi.fn(),
   loadLastBrowserDirectoryHandle: vi.fn(),
   loadLastTauriProjectPath: vi.fn(),
+  removeRecentProject: vi.fn(),
   saveLastActiveProjectFile: vi.fn(),
   saveLastBrowserDirectoryHandle: vi.fn(),
   saveLastTauriProjectPath: vi.fn(),
+  saveRecentProject: vi.fn(),
 }));
 
 const clearLastActiveProjectFileMock = vi.mocked(clearLastActiveProjectFile);
@@ -89,11 +100,16 @@ const openBrowserProjectFolderMock = vi.mocked(openBrowserProjectFolder);
 const openMock = vi.mocked(open);
 const readBrowserProjectFileMock = vi.mocked(readBrowserProjectFile);
 const readProjectFileMock = vi.mocked(readProjectFile);
+const removeRecentProjectMock = vi.mocked(removeRecentProject);
+const renameBrowserProjectFileMock = vi.mocked(renameBrowserProjectFile);
+const renameProjectFileMock = vi.mocked(renameProjectFile);
 const saveBrowserProjectFileMock = vi.mocked(saveBrowserProjectFile);
 const saveLastBrowserDirectoryHandleMock = vi.mocked(saveLastBrowserDirectoryHandle);
 const saveLastActiveProjectFileMock = vi.mocked(saveLastActiveProjectFile);
 const saveLastTauriProjectPathMock = vi.mocked(saveLastTauriProjectPath);
 const saveProjectFileMock = vi.mocked(saveProjectFile);
+const saveRecentProjectMock = vi.mocked(saveRecentProject);
+const scanBrowserProjectFolderMock = vi.mocked(scanBrowserProjectFolder);
 const scanProjectFolderMock = vi.mocked(scanProjectFolder);
 
 function createWorkspaceHarness() {
@@ -552,6 +568,158 @@ describe("useProjectWorkspaceHelpers", () => {
       focusEditor,
     });
     expect(deleteBrowserProjectFileMock).toHaveBeenCalled();
+  });
+
+  it("renames workspace files and keeps the active file selected", async () => {
+    const { refs, state } = createWorkspaceHarness();
+
+    await expect(
+      renameWorkspaceFile({
+        oldRelativePath: "chapter-01.md",
+        newRelativePath: "chapter-01.md",
+        refs,
+        source: { kind: "tauri", path: "/notes/book" },
+        state,
+      }),
+    ).resolves.toBe(refs.projectFiles);
+
+    await expect(
+      renameWorkspaceFile({
+        oldRelativePath: "chapter-01.md",
+        newRelativePath: "chapter-02.md",
+        refs,
+        source: { kind: "tauri", path: "/notes/book" },
+        state,
+      }),
+    ).rejects.toThrow("A file already exists at that path.");
+
+    await renameWorkspaceFile({
+      oldRelativePath: "chapter-01.md",
+      newRelativePath: "renamed.md",
+      refs,
+      source: { kind: "tauri", path: "/notes/book" },
+      state,
+    });
+
+    expect(renameProjectFileMock).toHaveBeenCalledWith(
+      "/notes/book",
+      "chapter-01.md",
+      "renamed.md",
+    );
+    expect(state.setActiveFile).toHaveBeenCalledWith("renamed.md");
+
+    await expect(
+      renameWorkspaceFile({
+        oldRelativePath: "chapter-02.md",
+        newRelativePath: "browser.md",
+        refs: {
+          ...refs,
+          activeFilePath: "chapter-01.md",
+          source: { kind: "browser", name: "Book", id: "book-1" },
+        },
+        source: { kind: "browser", name: "Book", id: "book-1" },
+        state,
+      }),
+    ).rejects.toThrow("Open a browser project folder before renaming files.");
+
+    const browserDirectoryHandle = { name: "Browser Book" } as FileSystemDirectoryHandle;
+    await renameWorkspaceFile({
+      oldRelativePath: "chapter-02.md",
+      newRelativePath: "browser.md",
+      refs: {
+        ...refs,
+        activeFilePath: "chapter-01.md",
+        browserDirectoryHandle,
+        browserFileHandles: new Map(),
+        source: { kind: "browser", name: "Book", id: "book-1" },
+      },
+      source: { kind: "browser", name: "Book", id: "book-1" },
+      state,
+    });
+
+    expect(renameBrowserProjectFileMock).toHaveBeenCalledWith(
+      browserDirectoryHandle,
+      expect.any(Map),
+      "chapter-02.md",
+      "browser.md",
+    );
+  });
+
+  it("opens recent projects and removes inaccessible recent entries", async () => {
+    const { focusEditor, refs, state } = createWorkspaceHarness();
+    const effects = {
+      focusEditor,
+      setBrowserDirectoryHandle: vi.fn(),
+      setBrowserFileHandles: vi.fn(),
+      setProjectError: vi.fn(),
+      setRecentProjects: vi.fn(),
+    };
+    saveRecentProjectMock.mockReturnValue([
+      { kind: "tauri", id: "/book", label: "/book" },
+    ]);
+    removeRecentProjectMock.mockReturnValue([]);
+    scanProjectFolderMock.mockResolvedValueOnce([{ relativePath: "chapter.md" }]);
+    readProjectFileMock.mockResolvedValueOnce("# Chapter");
+
+    await openRecentWorkspaceProject({
+      recentProject: { kind: "tauri", id: "/book", label: "/book" },
+      refs,
+      state,
+      effects,
+    });
+
+    expect(saveLastTauriProjectPathMock).toHaveBeenCalledWith("/book");
+    expect(effects.setRecentProjects).toHaveBeenCalledWith([
+      { kind: "tauri", id: "/book", label: "/book" },
+    ]);
+
+    scanProjectFolderMock.mockRejectedValueOnce(new Error("missing"));
+
+    await expect(
+      openRecentWorkspaceProject({
+        recentProject: { kind: "tauri", id: "/missing", label: "/missing" },
+        refs,
+        state,
+        effects,
+      }),
+    ).rejects.toThrow("missing");
+
+    expect(removeRecentProjectMock).toHaveBeenCalledWith("/missing");
+
+    loadLastBrowserDirectoryHandleMock.mockResolvedValueOnce(null);
+
+    await expect(
+      openRecentWorkspaceProject({
+        recentProject: { kind: "browser", id: "book-1", label: "Book (browser)" },
+        refs,
+        state,
+        effects,
+      }),
+    ).rejects.toThrow("That browser project is no longer available.");
+
+    const directoryHandle = { name: "Browser Book" } as FileSystemDirectoryHandle;
+    loadLastBrowserDirectoryHandleMock.mockResolvedValueOnce({
+      id: "book-1",
+      directoryHandle,
+    });
+    scanBrowserProjectFolderMock.mockResolvedValueOnce({
+      fileHandles: new Map([["browser.md", {} as never]]),
+      files: [{ relativePath: "browser.md" }],
+    });
+    readBrowserProjectFileMock.mockResolvedValueOnce("# Browser");
+    saveRecentProjectMock.mockReturnValueOnce([
+      { kind: "browser", id: "book-1", label: "Book (browser)" },
+    ]);
+
+    await openRecentWorkspaceProject({
+      recentProject: { kind: "browser", id: "book-1", label: "Book (browser)" },
+      refs,
+      state,
+      effects,
+    });
+
+    expect(effects.setBrowserDirectoryHandle).toHaveBeenCalledWith(directoryHandle);
+    expect(effects.setBrowserFileHandles).toHaveBeenCalledWith(expect.any(Map));
   });
 
   it("skips restore when no persisted project is available", async () => {

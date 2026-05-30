@@ -27,3 +27,27 @@ export async function createProjectFile(projectPath: string, relativePath: strin
 export async function deleteProjectFile(projectPath: string, relativePath: string) {
   await invoke("delete_project_file", { projectPath, relativePath });
 }
+
+export async function renameProjectFile(
+  projectPath: string,
+  oldRelativePath: string,
+  newRelativePath: string,
+) {
+  await invoke("rename_project_file", {
+    projectPath,
+    oldRelativePath,
+    newRelativePath,
+  });
+}
+
+export async function readProjectAsset(
+  projectPath: string,
+  activeFilePath: string,
+  assetPath: string,
+) {
+  return invoke<{ mimeType: string; bytes: number[] }>("read_project_asset", {
+    projectPath,
+    activeFilePath,
+    assetPath,
+  });
+}

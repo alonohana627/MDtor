@@ -1,6 +1,7 @@
 import { type ProjectSource } from "../project/projectTypes";
 import { type BrowserProjectFile } from "../services/browserProjectFiles";
 import { type ProjectFile } from "../services/projectFiles";
+import { type RecentProject } from "../services/projectPersistence";
 
 export type WorkspaceState = {
   setActiveFile: (relativePath: string | null) => void;
@@ -24,4 +25,5 @@ export type WorkspaceEffects = {
   setBrowserDirectoryHandle: (handle: FileSystemDirectoryHandle | null) => void;
   setBrowserFileHandles: (handles: Map<string, BrowserProjectFile>) => void;
   setProjectError: (error: string | null) => void;
+  setRecentProjects?: (projects: RecentProject[]) => void;
 };

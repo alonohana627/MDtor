@@ -7,13 +7,13 @@ vi.mock("../../../src/components/HighlightedCodeBlock", () => ({
   HighlightedCodeBlock: ({
     code,
     language,
-    isActive,
+    blockIndex,
   }: {
     code: string;
     language: string;
-    isActive: boolean;
+    blockIndex?: number;
   }) => (
-    <pre className={isActive ? "active-preview-block" : undefined}>
+    <pre data-block-index={blockIndex}>
       <span>{language}</span>
       <code>{code}</code>
     </pre>
@@ -21,7 +21,7 @@ vi.mock("../../../src/components/HighlightedCodeBlock", () => ({
 }));
 
 describe("MarkdownBlockView", () => {
-  it("renders and highlights a heading block", () => {
+  it("renders a heading block with source metadata", () => {
     const block: MarkdownBlock = {
       type: "heading",
       level: 2,
@@ -29,10 +29,13 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 3, endLine: 3 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={3} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} blockIndex={7} theme="light" direction={"ltr"} />,
+    );
 
-    expect(screen.getByRole("heading", { name: "Heading", level: 2 })).toHaveClass(
-      "active-preview-block",
+    expect(screen.getByRole("heading", { name: "Heading", level: 2 })).toHaveAttribute(
+      "data-block-index",
+      "7",
     );
   });
 
@@ -43,13 +46,15 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 1 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={99} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} blockIndex={0} theme="light" direction={"ltr"} />,
+    );
 
     expect(screen.getByText("bold")).toHaveTextContent("bold");
     expect(screen.getByText("bold").tagName.toLowerCase()).toBe("strong");
   });
 
-  it("highlights only the active list item", () => {
+  it("renders list item source lines for preview highlighting", () => {
     const block: MarkdownBlock = {
       type: "list",
       ordered: false,
@@ -60,10 +65,12 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 2 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={2} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} blockIndex={0} theme="light" direction={"ltr"} />,
+    );
 
-    expect(screen.getByText("one")).not.toHaveClass("active-preview-line");
-    expect(screen.getByText("two")).toHaveClass("active-preview-line");
+    expect(screen.getByText("one")).toHaveAttribute("data-source-line", "1");
+    expect(screen.getByText("two")).toHaveAttribute("data-source-line", "2");
   });
 
   it("renders blockquotes", () => {
@@ -73,9 +80,11 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 1 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={1} theme="light" />);
+    render(
+      <MarkdownBlockView block={block} blockIndex={0} theme="light" direction={"ltr"} />,
+    );
 
-    expect(screen.getByText("quoted")).toHaveClass("active-preview-block");
+    expect(screen.getByText("quoted")).toHaveAttribute("data-source-start-line", "1");
   });
 
   it("delegates code blocks to the highlighted code block renderer", () => {
@@ -86,12 +95,15 @@ describe("MarkdownBlockView", () => {
       source: { startLine: 1, endLine: 3 },
     };
 
-    render(<MarkdownBlockView block={block} currentLine={2} theme="dark" />);
+    render(
+      <MarkdownBlockView block={block} blockIndex={3} theme="dark" direction={"ltr"} />,
+    );
 
     expect(screen.getByText("ts")).toBeInTheDocument();
     expect(screen.getByText("const value = 1;")).toBeInTheDocument();
-    expect(screen.getByText("const value = 1;").closest("pre")).toHaveClass(
-      "active-preview-block",
+    expect(screen.getByText("const value = 1;").closest("pre")).toHaveAttribute(
+      "data-block-index",
+      "3",
     );
   });
 });

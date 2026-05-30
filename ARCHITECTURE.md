@@ -16,15 +16,18 @@ React UI
 
 ### Frontend
 
-- `src/App.tsx`: small application shell. It wires theme/direction state into the
-  sidebar, editor, and preview panes.
+- `src/App.tsx`: application shell. It wires theme/direction state, writer
+  toolbar controls, export actions, split layout, outline navigation, and
+  workspace state into the sidebar, editor, and preview panes. Preview,
+  outline, and document-stat rendering consume deferred Markdown so normal
+  typing stays on the fastest path.
 - `src/components/`: presentational React components for the editor, preview,
   sidebar, theme toggle, code blocks, and Markdown block rendering.
 - `src/hooks/`: workflow hooks that coordinate project state, polling, keyboard
   shortcuts, project lifecycle, file operations, and shared workspace state
   helpers.
 - `src/services/`: IO boundaries for Tauri commands, browser filesystem handles,
-  and local persistence.
+  local persistence, and document export.
 - `src/project/`: project source types and pure helper functions.
 - `src/markdown/`: custom Markdown parser, inline renderer, editor highlighter,
   and parser types.
@@ -56,7 +59,7 @@ It owns:
 - active Markdown file path
 - busy/error state
 - editor focus restoration
-- create/switch/save/delete operations
+- create/switch/save/delete/rename operations
 - last project and last active file restoration
 
 Supporting hooks and helper modules keep smaller concerns out of the workspace
@@ -69,8 +72,8 @@ hook:
 - `useProjectKeyboardShortcuts`: handles `Ctrl` / `Cmd` project shortcuts.
 - `useProjectWorkspaceActions`: exposes UI actions as callbacks.
 - `workspaceCore`: shared load/save/read/persistence primitives.
-- `workspaceFileOperations`: create, delete, switch, reorder, and active-file
-  fallback behavior.
+- `workspaceFileOperations`: create, delete, rename, switch, reorder, and
+  active-file fallback behavior.
 - `workspaceProjectLifecycle`: open-folder and restore-project flows.
 
 ## Project Sources
@@ -110,6 +113,9 @@ and deletion.
 
 - last Tauri project path in `localStorage`
 - last active file per project in `localStorage`
+- recent projects in `localStorage`
+- adjustable split layout in `localStorage`
+- editor/preview scroll-sync preference in `localStorage`
 - last browser directory handle and generated browser project id in IndexedDB
   when the browser allows it
 
@@ -133,9 +139,23 @@ markdown string
 Inline Markdown rendering happens after block parsing. Editor highlighting uses a
 separate tokenization path because the editor remains a native `<textarea>` for
 selection, typing, paste, undo, and keyboard behavior.
+The app parses deferred Markdown into `MarkdownBlock[]` once for the preview and
+outline instead of reparsing independently. The editor highlight layer builds a
+line-start index for the current document and renders only the visible line
+window, while cursor-line tracking uses that index for binary-search lookup.
+Preview active-line highlighting is applied as DOM class updates over memoized
+rendered content, so cursor movement and text selection do not re-render every
+preview block in large documents.
 
 Inline links are allowlisted before rendering. Only `http:`, `https:`, and
 `mailto:` targets become anchors; unsupported schemes render as inert text.
+Relative Markdown images are resolved through the active project file and loaded
+through the Tauri or browser filesystem service boundary.
+
+Document export is split between `src/services/documentExport.ts`, which owns
+save-location prompts and Tauri/browser writes, and
+`src/markdown/exportMarkdown.ts`, which converts parsed Markdown blocks into
+standalone HTML, PDF bytes, and DOCX bytes.
 
 Tauri also defines a CSP in `src-tauri/tauri.conf.json` so the desktop webview
 does not run with CSP disabled.
@@ -144,7 +164,7 @@ See [src/markdown/README.md](src/markdown/README.md) for the parser details.
 
 ## Testing Strategy
 
-Tests live in `tests/unit`.
+Tests live in `tests/unit`, `tests/performance`, and `tests/bench`.
 
 - `tests/unit/markdown/`: parser, inline renderer, and editor highlighting logic.
 - `tests/unit/components/`: React component rendering and interactions.
@@ -153,6 +173,10 @@ Tests live in `tests/unit`.
 - `tests/unit/project/`: pure project helpers.
 - `tests/unit/hooks/`: project polling, keyboard shortcuts, and workspace
   workflows.
+- `tests/performance/`: local performance regression tests for large Markdown
+  parsing and editor responsiveness.
+- `tests/bench/`: local Vitest benchmarks for editor, preview, Markdown,
+  highlighter, workspace, and sidebar hot paths.
 
 Tauri command wrappers are tested by mocking `invoke`. Browser file access is
 tested with in-memory directory/file handle fakes. Workspace behavior is tested

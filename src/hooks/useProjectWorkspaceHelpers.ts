@@ -13,11 +13,13 @@ export {
   findQuickSwitchFile,
   getNextProjectFilePath,
   removeProjectFile,
+  renameWorkspaceFile,
   reorderProjectFiles,
   switchWorkspaceFile,
 } from "./workspaceFileOperations";
 export {
   handleRestoreWorkspaceError,
+  openRecentWorkspaceProject,
   openWorkspaceFolder,
   restoreWorkspaceProject,
 } from "./workspaceProjectLifecycle";

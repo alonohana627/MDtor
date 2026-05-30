@@ -16,6 +16,19 @@ function isMarkdownFile(fileName: string) {
   return lowerFileName.endsWith(".md") || lowerFileName.endsWith(".markdown");
 }
 
+function isImageFile(fileName: string) {
+  const lowerFileName = fileName.toLowerCase();
+
+  return (
+    lowerFileName.endsWith(".png") ||
+    lowerFileName.endsWith(".jpg") ||
+    lowerFileName.endsWith(".jpeg") ||
+    lowerFileName.endsWith(".gif") ||
+    lowerFileName.endsWith(".webp") ||
+    lowerFileName.endsWith(".svg")
+  );
+}
+
 function parseProjectFilePath(relativePath: string, action: "create" | "delete") {
   const pathParts = relativePath.split("/").filter(Boolean);
   const fileName = pathParts.pop();
@@ -201,4 +214,73 @@ export async function deleteBrowserProjectFile(
 
   await currentDirectory.removeEntry(fileName);
   fileHandles.delete(relativePath);
+}
+
+export async function renameBrowserProjectFile(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileHandles: Map<string, BrowserProjectFile>,
+  oldRelativePath: string,
+  newRelativePath: string,
+) {
+  const oldFile = fileHandles.get(oldRelativePath);
+
+  if (!oldFile) {
+    throw new Error("Could not find the selected Markdown file.");
+  }
+
+  await createBrowserProjectFile(directoryHandle, fileHandles, newRelativePath);
+  const content = await readBrowserProjectFile(fileHandles, oldRelativePath);
+  await saveBrowserProjectFile(fileHandles, newRelativePath, content);
+  await deleteBrowserProjectFile(directoryHandle, fileHandles, oldRelativePath);
+}
+
+export async function readBrowserProjectAsset(
+  directoryHandle: FileSystemDirectoryHandle,
+  activeFilePath: string,
+  assetPath: string,
+) {
+  const pathParts = resolveRelativeAssetPath(activeFilePath, assetPath);
+  const fileName = pathParts.pop();
+
+  if (!fileName || !isImageFile(fileName)) {
+    throw new Error("Only local image files can be previewed.");
+  }
+
+  let currentDirectory = directoryHandle;
+
+  for (const directoryName of pathParts) {
+    currentDirectory = await currentDirectory.getDirectoryHandle(directoryName);
+  }
+
+  const fileHandle = await currentDirectory.getFileHandle(fileName);
+  return fileHandle.getFile();
+}
+
+function resolveRelativeAssetPath(activeFilePath: string, assetPath: string) {
+  if (/^[a-z][a-z\d+.-]*:/i.test(assetPath) || assetPath.startsWith("/")) {
+    throw new Error("Only relative local image paths can be previewed.");
+  }
+
+  const baseParts = activeFilePath.split("/").slice(0, -1);
+  const pathParts = [...baseParts, ...assetPath.split("/")].filter(Boolean);
+  const resolvedParts: string[] = [];
+
+  for (const part of pathParts) {
+    if (part === ".") {
+      continue;
+    }
+
+    if (part === "..") {
+      if (resolvedParts.length === 0) {
+        throw new Error("Image path must stay inside the project folder.");
+      }
+
+      resolvedParts.pop();
+      continue;
+    }
+
+    resolvedParts.push(part);
+  }
+
+  return resolvedParts;
 }
