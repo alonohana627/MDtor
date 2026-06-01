@@ -15,15 +15,23 @@ describe("exportMarkdown", () => {
       "# Title\n\nParagraph with [link](https://example.com) and ![diagram](images/flow.png).\n\n- One\n- Two\n\n> Quote\n\n```ts\nconst x = 1;\n```",
       "Article",
     );
+    const document = new DOMParser().parseFromString(html, "text/html");
 
     expect(html).toContain("<title>Article</title>");
-    expect(html).toContain("<h1>Title</h1>");
-    expect(html).toContain('<a href="https://example.com">link</a>');
-    expect(html).toContain("<ul>");
-    expect(html).toContain("<blockquote>Quote</blockquote>");
-    expect(html).toContain('<img src="images/flow.png" alt="diagram" />');
-    expect(html).toContain('class="language-ts"');
     expect(html).toContain("<style>");
+    expect(document.querySelector("h1")?.textContent).toBe("Title");
+    expect(document.querySelector("a")?.getAttribute("href")).toBe(
+      "https://example.com",
+    );
+    expect(document.querySelector("ul")?.textContent).toContain("One");
+    expect(document.querySelector("blockquote")?.textContent).toContain("Quote");
+    expect(document.querySelector("img")?.getAttribute("src")).toBe(
+      "images/flow.png",
+    );
+    expect(document.querySelector("img")?.getAttribute("alt")).toBe("diagram");
+    expect(document.querySelector("pre code")?.classList.contains("language-ts")).toBe(
+      true,
+    );
   });
 
   it("creates a PDF byte stream that includes exported document structure", () => {

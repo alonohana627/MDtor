@@ -21,16 +21,16 @@ React UI
   workspace state into the sidebar, editor, and preview panes. Preview,
   outline, and document-stat rendering consume deferred Markdown so normal
   typing stays on the fastest path.
-- `src/components/`: presentational React components for the editor, preview,
-  sidebar, theme toggle, code blocks, and Markdown block rendering.
+- `src/components/`: presentational React components for the CodeMirror editor,
+  HTML preview, sidebar, theme toggle, and writer controls.
 - `src/hooks/`: workflow hooks that coordinate project state, polling, keyboard
   shortcuts, project lifecycle, file operations, and shared workspace state
   helpers.
 - `src/services/`: IO boundaries for Tauri commands, browser filesystem handles,
   local persistence, and document export.
 - `src/project/`: project source types and pure helper functions.
-- `src/markdown/`: custom Markdown parser, inline renderer, editor highlighter,
-  and parser types.
+- `src/markdown/`: Markdown rendering/sanitization, selected code highlighting,
+  outline helpers, parser types, and export helpers.
 - `src/types.ts`: shared UI-level types such as theme and document direction.
 
 ### Tauri Backend
@@ -130,43 +130,43 @@ The preview path is intentionally simple:
 
 ```text
 markdown string
-  -> parseMarkdown()
-  -> MarkdownBlock[]
-  -> MarkdownBlockView
-  -> React elements
+  -> markdown-it in a Web Worker when available
+  -> highlight.js core for fenced code
+  -> DOMPurify on the main thread
+  -> sanitized preview HTML
 ```
 
-Inline Markdown rendering happens after block parsing. Editor highlighting uses a
-separate tokenization path because the editor remains a native `<textarea>` for
-selection, typing, paste, undo, and keyboard behavior.
-The app parses deferred Markdown into `MarkdownBlock[]` once for the preview and
-outline instead of reparsing independently. The editor highlight layer builds a
-line-start index for the current document and renders only the visible line
-window, while cursor-line tracking uses that index for binary-search lookup.
-Preview active-line highlighting is applied as DOM class updates over memoized
-rendered content, so cursor movement and text selection do not re-render every
-preview block in large documents.
+`src/markdown/markdownRendererCore.ts` owns Markdown-to-HTML rendering, safe
+link policy, heading anchors, task lists, footnotes, and code highlighting.
+`src/markdown/markdownRenderer.ts` owns final sanitization. The preview
+component debounces rendering through `useMarkdownRenderWorker`, keeps the
+previous sanitized HTML visible while the next render is pending, and falls back
+to main-thread rendering if Web Workers are unavailable.
+
+The editor path uses CodeMirror 6 with `@codemirror/lang-markdown`, so
+CodeMirror owns syntax highlighting, cursor movement, selection, line numbers,
+line wrapping, and editor scrolling.
 
 Inline links are allowlisted before rendering. Only `http:`, `https:`, and
 `mailto:` targets become anchors; unsupported schemes render as inert text.
-Relative Markdown images are resolved through the active project file and loaded
-through the Tauri or browser filesystem service boundary.
 
 Document export is split between `src/services/documentExport.ts`, which owns
 save-location prompts and Tauri/browser writes, and
-`src/markdown/exportMarkdown.ts`, which converts parsed Markdown blocks into
-standalone HTML, PDF bytes, and DOCX bytes.
+`src/markdown/exportMarkdown.ts`, which uses `markdown-it` HTML and tokens to
+produce standalone HTML, PDF bytes, and DOCX bytes.
 
 Tauri also defines a CSP in `src-tauri/tauri.conf.json` so the desktop webview
 does not run with CSP disabled.
 
-See [src/markdown/README.md](src/markdown/README.md) for the parser details.
+See [src/markdown/README.md](src/markdown/README.md) for the Markdown rendering
+details.
 
 ## Testing Strategy
 
 Tests live in `tests/unit`, `tests/performance`, and `tests/bench`.
 
-- `tests/unit/markdown/`: parser, inline renderer, and editor highlighting logic.
+- `tests/unit/markdown/`: Markdown rendering, export helpers, and document
+  utilities.
 - `tests/unit/components/`: React component rendering and interactions.
 - `tests/unit/services/`: Tauri command payloads, browser folder/file behavior,
   and persistence.
@@ -174,7 +174,7 @@ Tests live in `tests/unit`, `tests/performance`, and `tests/bench`.
 - `tests/unit/hooks/`: project polling, keyboard shortcuts, and workspace
   workflows.
 - `tests/performance/`: local performance regression tests for large Markdown
-  parsing and editor responsiveness.
+  rendering and editor responsiveness.
 - `tests/bench/`: local Vitest benchmarks for editor, preview, Markdown,
   highlighter, workspace, and sidebar hot paths.
 
@@ -189,7 +189,6 @@ thresholds of 90% statements, 90% branches, 90% functions, and 90% lines.
 
 ## Build Notes
 
-Shiki syntax highlighting is isolated behind `src/services/codeHighlighter.ts`.
-It uses a curated lazy-loaded language/theme set instead of the full Shiki
-bundle. C++ remains the largest optional grammar chunk, so Vite's local warning
-threshold is set high enough for that intentional lazy chunk.
+The active editor and preview libraries are bundled into the main frontend
+chunk. Local bundle warnings should be evaluated against editor responsiveness
+and startup cost before adding manual chunking.

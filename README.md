@@ -5,21 +5,22 @@ editing. It opens a project folder, discovers Markdown files recursively, and
 lets you write, preview, create, reorder, and delete `.md` / `.markdown` files.
 
 The app is currently focused on long-form writing workflows: fast file switching,
-line-aware preview highlighting, outline navigation, export, RTL/LTR direction
-controls, and persistence for recent projects and active files.
+outline navigation, export, RTL/LTR direction controls, and persistence for
+recent projects and active files.
 
 ## Features
 
 - Split-screen Markdown editor and rendered preview.
 - Live preview while typing.
-- Editor line numbers synced with textarea scrolling.
-- Current editor line indicator and preview block highlighting.
+- CodeMirror 6 editor with Markdown language support, line numbers, selection,
+  cursor movement, wrapping, and scrolling handled by the editor library.
+- Current editor line indicator.
 - Independent editor and preview scrolling with an optional sync toggle.
 - LTR and RTL document direction controls.
 - Light and dark mode toggle.
-- Responsive large-document editing with virtualized editor-side Markdown
-  highlighting.
-- Preview-side fenced code-block syntax highlighting with Shiki.
+- Responsive large-document editing using CodeMirror and worker-assisted,
+  debounced preview rendering.
+- Preview-side fenced code-block syntax highlighting with `highlight.js` core.
 - Live word count, character count, and reading-time estimate.
 - Live outline sidebar generated from document headings.
 - Adjustable editor/preview split layout.
@@ -31,7 +32,6 @@ controls, and persistence for recent projects and active files.
   Access API.
 - Markdown file creation, rename, right-click deletion, manual sidebar ordering,
   and automatic folder rescans while a project is open.
-- Local image preview for relative Markdown image references.
 - Active-file recovery when the currently open file is removed outside the app.
 - Recent project reopening, last-opened project folder, and last-active-file
   restore.
@@ -64,8 +64,10 @@ the Tauri desktop app for native folder access.
 
 ## Markdown Support
 
-The app currently uses a small custom parser in `src/markdown`, not a full
-Markdown engine.
+The live preview uses `markdown-it` for CommonMark-compatible Markdown rendering,
+`highlight.js/lib/core` for selected fenced code languages, and DOMPurify before
+rendering sanitized HTML. Large preview renders run in a Web Worker when the
+browser/webview supports workers.
 
 Supported block syntax:
 
@@ -74,15 +76,16 @@ Supported block syntax:
 - Blockquotes: `> quote`
 - Ordered lists: `1. item`
 - Unordered lists: `- item`, `* item`, `+ item`
+- Task lists: `- [x] done`
 - Fenced code blocks: triple backticks with optional language labels
+- Footnotes: `Text[^1]` plus `[^1]: note`
 
-Supported inline syntax:
+Supported inline syntax includes:
 
 - Bold: `**text**`
 - Italic: `*text*`
 - Inline code: `` `code` ``
 - Links: `[label](https://example.com)`
-- Images: `![alt](relative/path.png)`
 - Hard line breaks using two trailing spaces before a newline
 
 Link handling:
@@ -90,16 +93,10 @@ Link handling:
 - Preview links only render as clickable links for `http:`, `https:`, and
   `mailto:` targets. Other schemes are rendered as inert text.
 
-Known limitations:
+Raw HTML rendering is disabled.
 
-- No nested lists yet.
-- No tables yet.
-- Images are previewed for relative local paths inside the open project.
-- No raw HTML rendering.
-- No full CommonMark compliance.
-
-See [src/markdown/README.md](src/markdown/README.md) for parser and editor
-highlighting details.
+See [src/markdown/README.md](src/markdown/README.md) for rendering and
+sanitization details.
 
 ## Getting Started
 
@@ -154,14 +151,14 @@ npm run tauri build
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): code structure, frontend/Tauri boundaries,
   project workflow, persistence, and testing strategy.
-- [src/markdown/README.md](src/markdown/README.md): Markdown parser and editor
-  highlighting internals.
+- [src/markdown/README.md](src/markdown/README.md): Markdown rendering and
+  sanitization internals.
 - [HowToBumpVersion.md](HowToBumpVersion.md): manual version bump checklist.
 - [CHANGELOG.md](CHANGELOG.md): release history.
 
 ## Testing
 
-Unit tests live under `tests/unit` and cover Markdown parsing/rendering, React
+Unit tests live under `tests/unit` and cover Markdown rendering/export, React
 components, project services, persistence, and project workflow hooks.
 Performance regression tests live under `tests/performance`, and benchmarks live
 under `tests/bench` for local profiling of editor, preview, Markdown, and
@@ -182,9 +179,3 @@ npm run test:coverage
 Coverage output is for local inspection only. It writes reports to `coverage/`,
 which is ignored by Git and is not part of CI. The local coverage command enforces
 global thresholds of 90% statements, 90% branches, 90% functions, and 90% lines.
-
-## Notes
-
-Shiki uses a curated lazy-loaded language/theme set for preview code blocks.
-The C++ grammar is still relatively large, but it is isolated from the main app
-bundle.

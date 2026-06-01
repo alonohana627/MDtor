@@ -1,38 +1,23 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { afterAll, afterEach, beforeAll, bench, describe, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, bench, describe } from "vitest";
 import { MarkdownPreview } from "../../src/components/MarkdownPreview";
-import { parseMarkdown } from "../../src/markdown/parseMarkdown";
+import { renderMarkdownToHtml } from "../../src/markdown/markdownRenderer";
 import { makeMarkdownDocument } from "./fixtures";
-
-vi.mock("../../src/components/HighlightedCodeBlock", () => ({
-  HighlightedCodeBlock: ({
-    code,
-    language,
-    sourceLine,
-  }: {
-    code: string;
-    language: string;
-    sourceLine?: number;
-  }) => (
-    <pre data-language={language} data-source-line={sourceLine}>
-      <code>{code}</code>
-    </pre>
-  ),
-}));
 
 const empty = "";
 const small = makeMarkdownDocument(10);
 const medium = makeMarkdownDocument(250);
-const large = makeMarkdownDocument(1000);
+const largeMarkdown = makeMarkdownDocument(1000);
+const largePreview = makeMarkdownDocument(300);
 
 let roots: Root[] = [];
 let containers: HTMLDivElement[] = [];
 let previewUpdateRoot: Root | null = null;
 let previewUpdateContainer: HTMLDivElement | null = null;
-let previewUpdateLine = 100;
+let previewUpdateMarkdown = largePreview;
 
-function renderMarkdownPreview(markdown: string, currentLine = 1) {
+function renderMarkdownPreview(markdown: string) {
   const container = document.createElement("div");
   document.body.appendChild(container);
 
@@ -42,12 +27,7 @@ function renderMarkdownPreview(markdown: string, currentLine = 1) {
 
   flushSync(() => {
     root.render(
-      <MarkdownPreview
-        markdown={markdown}
-        currentLine={currentLine}
-        theme="light"
-        direction="ltr"
-      />,
+      <MarkdownPreview markdown={markdown} direction="ltr" currentLine={1} />,
     );
   });
 }
@@ -60,10 +40,9 @@ beforeAll(() => {
   flushSync(() => {
     previewUpdateRoot?.render(
       <MarkdownPreview
-        markdown={large}
-        currentLine={100}
-        theme="light"
+        markdown={largePreview}
         direction="ltr"
+        currentLine={1}
       />,
     );
   });
@@ -76,16 +55,18 @@ afterAll(() => {
   previewUpdateContainer = null;
 });
 
-function updateLargeMarkdownPreviewCurrentLine() {
-  previewUpdateLine = previewUpdateLine === 100 ? 2000 : 100;
+function updateLargeMarkdownPreviewMarkdown() {
+  previewUpdateMarkdown =
+    previewUpdateMarkdown === largePreview
+      ? `${largePreview}\n\nextra`
+      : largePreview;
 
   flushSync(() => {
     previewUpdateRoot?.render(
       <MarkdownPreview
-        markdown={large}
-        currentLine={previewUpdateLine}
-        theme="light"
+        markdown={previewUpdateMarkdown}
         direction="ltr"
+        currentLine={1}
       />,
     );
   });
@@ -104,17 +85,17 @@ afterEach(() => {
   containers = [];
 });
 
-describe("parseMarkdown", () => {
-  bench("parse small markdown", () => {
-    parseMarkdown(small);
+describe("renderMarkdownToHtml", () => {
+  bench("render small markdown html", () => {
+    renderMarkdownToHtml(small);
   });
 
-  bench("parse medium markdown", () => {
-    parseMarkdown(medium);
+  bench("render medium markdown html", () => {
+    renderMarkdownToHtml(medium);
   });
 
-  bench("parse large markdown", () => {
-    parseMarkdown(large);
+  bench("render large markdown html", () => {
+    renderMarkdownToHtml(largeMarkdown);
   });
 });
 
@@ -124,18 +105,18 @@ describe("MarkdownPreview render", () => {
   });
 
   bench("render small preview", () => {
-    renderMarkdownPreview(small, 10);
+    renderMarkdownPreview(small);
   });
 
   bench("render medium preview", () => {
-    renderMarkdownPreview(medium, 500);
+    renderMarkdownPreview(medium);
   });
 
   bench("render large preview", () => {
-    renderMarkdownPreview(large, 2000);
+    renderMarkdownPreview(largePreview);
   });
 
-  bench("update large preview active line", () => {
-    updateLargeMarkdownPreviewCurrentLine();
+  bench("update large preview markdown", () => {
+    updateLargeMarkdownPreviewMarkdown();
   });
 });

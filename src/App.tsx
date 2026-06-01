@@ -8,14 +8,14 @@ import {
   useState,
 } from "react";
 import { DocumentOutline } from "./components/DocumentOutline";
-import { getLineStartOffset, MarkdownEditor } from "./components/MarkdownEditor";
+import { MarkdownEditor } from "./components/MarkdownEditor";
 import { MarkdownPreviewPane } from "./components/MarkdownPreviewPane";
 import { ProjectSidebar } from "./components/ProjectSidebar";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useProjectWorkspace } from "./hooks/useProjectWorkspace";
 import { getDocumentStats } from "./markdown/documentStats";
-import { getMarkdownOutlineFromBlocks } from "./markdown/outline";
-import { parseMarkdown } from "./markdown/parseMarkdown";
+import { getLineStartOffset } from "./markdown/lineOffsets";
+import { getMarkdownOutline } from "./markdown/outline";
 import { getProjectLabel } from "./project/projectUtils";
 import { exportMarkdownDocument, type ExportFormat } from "./services/documentExport";
 import { type DocumentDirection, type Theme } from "./types";
@@ -23,6 +23,12 @@ import "./App.css";
 
 const SPLIT_STORAGE_KEY = "mdtor:editor-preview-split";
 const SCROLL_SYNC_STORAGE_KEY = "mdtor:editor-preview-scroll-sync";
+
+type ScrollSyncTarget = {
+  clientHeight: number;
+  scrollHeight: number;
+  scrollTop: number;
+};
 
 function App() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -47,14 +53,7 @@ function App() {
   });
   const workspace = useProjectWorkspace();
   const deferredMarkdown = useDeferredValue(workspace.markdown);
-  const previewBlocks = useMemo(
-    () => parseMarkdown(deferredMarkdown),
-    [deferredMarkdown],
-  );
-  const outline = useMemo(
-    () => getMarkdownOutlineFromBlocks(previewBlocks),
-    [previewBlocks],
-  );
+  const outline = useMemo(() => getMarkdownOutline(deferredMarkdown), [deferredMarkdown]);
   const stats = useMemo(() => getDocumentStats(deferredMarkdown), [deferredMarkdown]);
 
   function toggleTheme() {
@@ -69,9 +68,10 @@ function App() {
 
     if (editor) {
       window.requestAnimationFrame(() => {
-        const previewTarget = previewRef.current?.querySelector(
-          `[data-source-line="${line}"]`,
-        );
+        const outlineTarget = outline.find((item) => item.line === line);
+        const previewTarget = outlineTarget
+          ? previewRef.current?.querySelector(`[id="${outlineTarget.id}"]`)
+          : previewRef.current?.querySelector(`[data-source-line="${line}"]`);
 
         editor.focus();
         editor.setSelectionRange(selectionStart, selectionStart);
@@ -86,7 +86,7 @@ function App() {
 
   function rememberScrollPosition(
     paneName: "editor" | "preview",
-    element: HTMLElement | null,
+    element: ScrollSyncTarget | null,
   ) {
     if (element) {
       scrollPositionsRef.current[paneName] = element.scrollTop;
@@ -112,8 +112,8 @@ function App() {
 
   function syncScrollPosition(
     sourceName: "editor" | "preview",
-    source: HTMLElement,
-    target: HTMLElement | null,
+    source: ScrollSyncTarget,
+    target: ScrollSyncTarget | null,
   ) {
     const previousSourceScrollTop = scrollPositionsRef.current[sourceName];
     const nextSourceScrollTop = source.scrollTop;
@@ -140,8 +140,8 @@ function App() {
       target.scrollTop;
   }
 
-  function handleEditorScroll(textarea: HTMLTextAreaElement) {
-    syncScrollPosition("editor", textarea, previewRef.current);
+  function handleEditorScroll(editor: HTMLElement) {
+    syncScrollPosition("editor", editor, previewRef.current);
   }
 
   function handlePreviewScroll(preview: HTMLElement) {
@@ -306,11 +306,8 @@ function App() {
         <MarkdownPreviewPane
           previewRef={previewRef}
           markdown={deferredMarkdown}
-          blocks={previewBlocks}
-          currentLine={workspace.currentLine}
-          theme={theme}
           direction={direction}
-          loadImage={workspace.loadProjectImage}
+          currentLine={workspace.currentLine}
           onPreviewScroll={handlePreviewScroll}
         />
       </div>

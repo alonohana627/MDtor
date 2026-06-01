@@ -3,66 +3,72 @@ import { describe, expect, it } from "vitest";
 import { MarkdownPreview } from "../../../src/components/MarkdownPreview";
 
 describe("MarkdownPreview", () => {
-  it("renders an empty preview message when there are no blocks", () => {
-    render(<MarkdownPreview markdown="" currentLine={1} theme="light" direction="ltr" />);
+  it("renders an empty preview message when there is no rendered HTML", () => {
+    render(<MarkdownPreview markdown="" direction="ltr" currentLine={1} />);
 
     expect(screen.getByText("Nothing to preview yet.")).toHaveClass("empty-preview");
   });
 
-  it("renders parsed markdown blocks and highlights the active source line", () => {
-    const { rerender } = render(
+  it("renders sanitized markdown HTML", () => {
+    render(
       <MarkdownPreview
-        markdown={"# Title\n\n- one\n- two\n\n> quote"}
-        currentLine={4}
-        theme="light"
+        markdown={"# Title\n\nParagraph with **bold** and [link](https://example.com)."}
         direction="ltr"
+        currentLine={1}
       />,
     );
 
     expect(screen.getByRole("heading", { name: "Title" })).toBeInTheDocument();
-    expect(screen.getByText("one")).not.toHaveClass("active-preview-line");
-    expect(screen.getByText("two")).toHaveClass("active-preview-line");
-    expect(screen.getByText("quote")).toBeInTheDocument();
-
-    rerender(
-      <MarkdownPreview
-        markdown={"# Title\n\n- one\n- two\n\n> quote"}
-        currentLine={6}
-        theme="light"
-        direction="ltr"
-      />,
+    expect(screen.getByText("bold").tagName).toBe("STRONG");
+    expect(screen.getByRole("link", { name: "link" })).toHaveAttribute(
+      "href",
+      "https://example.com",
     );
-
-    expect(screen.getByText("two")).not.toHaveClass("active-preview-line");
-    expect(screen.getByText("quote")).toHaveClass("active-preview-block");
   });
 
-  it("does not mark a preview block when the current line is outside parsed blocks", () => {
-    render(
-      <MarkdownPreview
-        markdown={"# Title\n\nBody"}
-        currentLine={99}
-        theme="light"
-        direction="ltr"
-      />,
+  it("applies document direction to the preview root", () => {
+    const { container } = render(
+      <MarkdownPreview markdown="# כותרת" direction="rtl" currentLine={1} />,
     );
 
-    expect(screen.getByRole("heading", { name: "Title" })).not.toHaveClass(
-      "active-preview-block",
-    );
-    expect(screen.getByText("Body")).not.toHaveClass("active-preview-block");
+    expect(container.querySelector(".markdown-preview")).toHaveAttribute("dir", "rtl");
   });
 
-  it("marks code blocks as left-to-right when the document is right-to-left", () => {
+  it("keeps code blocks in the code styling target", () => {
     const { container } = render(
       <MarkdownPreview
         markdown={"```ts\nconst value = 1;\n```"}
-        currentLine={1}
-        theme="light"
         direction="rtl"
+        currentLine={1}
       />,
     );
 
-    expect(container.querySelector("pre")).toHaveStyle({ direction: "ltr" });
+    expect(container.querySelector("pre code")).toHaveClass("language-ts");
+  });
+
+  it("marks the rendered block that contains the current editor line", () => {
+    const { container, rerender } = render(
+      <MarkdownPreview
+        markdown={"# Title\n\nFirst paragraph.\n\nSecond paragraph."}
+        direction="ltr"
+        currentLine={3}
+      />,
+    );
+
+    expect(container.querySelector(".active-preview")?.textContent).toBe(
+      "First paragraph.",
+    );
+
+    rerender(
+      <MarkdownPreview
+        markdown={"# Title\n\nFirst paragraph.\n\nSecond paragraph."}
+        direction="ltr"
+        currentLine={5}
+      />,
+    );
+
+    expect(container.querySelector(".active-preview")?.textContent).toBe(
+      "Second paragraph.",
+    );
   });
 });

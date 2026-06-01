@@ -1,0 +1,59 @@
+.codemirror-markdown-editor-host {
+  height: 100%;
+  min-height: 0;
+  background: var(--editor-bg);
+}
+
+.codemirror-markdown-editor-host .cm-editor {
+  height: 100%;
+  color: var(--editor-text);
+  background: var(--editor-bg);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 15px;
+  line-height: 24px;
+}
+
+.codemirror-markdown-editor-host .cm-scroller {
+  overflow: auto;
+}
+
+.codemirror-markdown-editor-host .cm-content {
+  min-height: 100%;
+  padding: 20px;
+  caret-color: var(--editor-text);
+}
+
+.codemirror-markdown-editor-ltr .cm-content {
+  text-align: left;
+}
+
+.codemirror-markdown-editor-rtl .cm-content {
+  text-align: right;
+}
+
+.codemirror-markdown-editor-host .cm-gutters {
+  color: var(--muted);
+  background: var(--editor-gutter-bg);
+  border-right: 1px solid var(--border);
+  direction: ltr;
+  text-align: right;
+}
+
+.codemirror-markdown-editor-host .cm-lineNumbers .cm-gutterElement {
+  padding: 0 10px;
+}
+
+.codemirror-markdown-editor-host .cm-activeLine,
+.codemirror-markdown-editor-host .cm-activeLineGutter {
+  background: var(--active-preview-bg);
+}
+
+.codemirror-markdown-editor-host .cm-focused {
+  outline: 0;
+}
+
+.codemirror-markdown-editor-host .cm-focused .cm-selectionBackground,
+.codemirror-markdown-editor-host .cm-selectionBackground,
+.codemirror-markdown-editor-host .cm-content ::selection {
+  background: var(--selection);
+}

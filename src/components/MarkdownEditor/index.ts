@@ -1,6 +1,2 @@
 export { MarkdownEditor } from "./MarkdownEditor";
-export {
-  getCurrentLine,
-  getCurrentLineFromLineStarts,
-  getLineStartOffset,
-} from "./editorTextMetrics";
+export type { MarkdownEditorHandle } from "./MarkdownEditor";
