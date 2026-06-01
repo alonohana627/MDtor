@@ -9,11 +9,7 @@ import {
 describe("CodeMirrorMarkdownEditor", () => {
   it("renders the editor and displays the initial value", () => {
     const { container } = render(
-      <CodeMirrorMarkdownEditor
-        value="# Title"
-        direction="ltr"
-        onChange={vi.fn()}
-      />,
+      <CodeMirrorMarkdownEditor value="# Title" direction="ltr" onChange={vi.fn()} />,
     );
 
     expect(container.querySelector(".cm-editor")).not.toBeNull();
@@ -52,7 +48,9 @@ describe("CodeMirrorMarkdownEditor", () => {
       <CodeMirrorMarkdownEditor value="Text" direction="ltr" onChange={onChange} />,
     );
 
-    rerender(<CodeMirrorMarkdownEditor value="Text" direction="ltr" onChange={onChange} />);
+    rerender(
+      <CodeMirrorMarkdownEditor value="Text" direction="ltr" onChange={onChange} />,
+    );
 
     expect(onChange).not.toHaveBeenCalled();
   });

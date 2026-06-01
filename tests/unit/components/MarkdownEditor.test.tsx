@@ -79,5 +79,4 @@ describe("MarkdownEditor", () => {
       expect(container.querySelector(".cm-content")).toHaveAttribute("dir", direction);
     },
   );
-
 });

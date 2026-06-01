@@ -6,11 +6,7 @@ import { MarkdownPreviewPane } from "../../../src/components/MarkdownPreviewPane
 describe("MarkdownPreviewPane", () => {
   it("renders a preview pane with markdown-it rendered content", () => {
     render(
-      <MarkdownPreviewPane
-        markdown="# Rendered title"
-        direction="ltr"
-        currentLine={1}
-      />,
+      <MarkdownPreviewPane markdown="# Rendered title" direction="ltr" currentLine={1} />,
     );
 
     expect(

@@ -91,7 +91,9 @@ function markdownToPlainLines(markdown: string) {
     const token = tokens[index];
 
     if (token.type === "heading_open") {
-      lines.push(`${"#".repeat(getHeadingLevel(token))} ${getInlineText(tokens[index + 1])}`);
+      lines.push(
+        `${"#".repeat(getHeadingLevel(token))} ${getInlineText(tokens[index + 1])}`,
+      );
       lines.push("");
       continue;
     }
@@ -140,11 +142,7 @@ function getInlineText(token: Token | undefined): string {
     return token.children.map(getInlineText).join("");
   }
 
-  if (
-    token.type === "text" ||
-    token.type === "code_inline" ||
-    token.type === "image"
-  ) {
+  if (token.type === "text" || token.type === "code_inline" || token.type === "image") {
     return token.content;
   }
 

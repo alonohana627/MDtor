@@ -26,9 +26,7 @@ function renderMarkdownPreview(markdown: string) {
   containers.push(container);
 
   flushSync(() => {
-    root.render(
-      <MarkdownPreview markdown={markdown} direction="ltr" currentLine={1} />,
-    );
+    root.render(<MarkdownPreview markdown={markdown} direction="ltr" currentLine={1} />);
   });
 }
 
@@ -39,11 +37,7 @@ beforeAll(() => {
 
   flushSync(() => {
     previewUpdateRoot?.render(
-      <MarkdownPreview
-        markdown={largePreview}
-        direction="ltr"
-        currentLine={1}
-      />,
+      <MarkdownPreview markdown={largePreview} direction="ltr" currentLine={1} />,
     );
   });
 });
@@ -57,9 +51,7 @@ afterAll(() => {
 
 function updateLargeMarkdownPreviewMarkdown() {
   previewUpdateMarkdown =
-    previewUpdateMarkdown === largePreview
-      ? `${largePreview}\n\nextra`
-      : largePreview;
+    previewUpdateMarkdown === largePreview ? `${largePreview}\n\nextra` : largePreview;
 
   flushSync(() => {
     previewUpdateRoot?.render(

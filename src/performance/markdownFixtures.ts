@@ -30,9 +30,7 @@ export const smallMarkdown = [
 export const mediumMarkdown = [
   "# Medium Document",
   "",
-  Array.from({ length: 80 }, (_, index) => createRepeatedSection(index + 1)).join(
-    "\n\n",
-  ),
+  Array.from({ length: 80 }, (_, index) => createRepeatedSection(index + 1)).join("\n\n"),
 ].join("\n");
 
 export const largeMarkdown = [

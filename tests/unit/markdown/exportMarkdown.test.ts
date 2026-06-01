@@ -20,14 +20,10 @@ describe("exportMarkdown", () => {
     expect(html).toContain("<title>Article</title>");
     expect(html).toContain("<style>");
     expect(document.querySelector("h1")?.textContent).toBe("Title");
-    expect(document.querySelector("a")?.getAttribute("href")).toBe(
-      "https://example.com",
-    );
+    expect(document.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
     expect(document.querySelector("ul")?.textContent).toContain("One");
     expect(document.querySelector("blockquote")?.textContent).toContain("Quote");
-    expect(document.querySelector("img")?.getAttribute("src")).toBe(
-      "images/flow.png",
-    );
+    expect(document.querySelector("img")?.getAttribute("src")).toBe("images/flow.png");
     expect(document.querySelector("img")?.getAttribute("alt")).toBe("diagram");
     expect(document.querySelector("pre code")?.classList.contains("language-ts")).toBe(
       true,
