@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { starterMarkdown } from "../data/starterMarkdown";
+import { type MarkdownEditorHandle } from "../components/MarkdownEditor";
 import {
   readBrowserProjectAsset,
   isBrowserProjectFolderPickerSupported,
@@ -35,7 +36,7 @@ export function useProjectWorkspace() {
   const browserDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const projectFilesRef = useRef<ProjectFile[]>([]);
   const isPollingProjectRef = useRef(false);
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<MarkdownEditorHandle>(null);
   const isDirty = markdown !== savedMarkdown;
 
   const focusEditor = useCallback(() => {

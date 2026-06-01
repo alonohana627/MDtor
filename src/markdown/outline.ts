@@ -1,5 +1,6 @@
-import { parseMarkdown } from "./parseMarkdown";
-import { type MarkdownBlock } from "./types";
+import type Token from "markdown-it/lib/token.mjs";
+import { createHeadingSlugger, slugifyHeading } from "./headingSlugs";
+import { getMarkdownTokens } from "./markdownRendererCore";
 
 export type OutlineItem = {
   id: string;
@@ -8,37 +9,33 @@ export type OutlineItem = {
   line: number;
 };
 
-function slugifyHeading(text: string) {
-  const slug = text
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || "section";
-}
+export { slugifyHeading };
 
 export function getMarkdownOutline(markdown: string): OutlineItem[] {
-  return getMarkdownOutlineFromBlocks(parseMarkdown(markdown));
-}
+  const slugHeading = createHeadingSlugger();
+  const tokens = getMarkdownTokens(markdown);
+  const outline: OutlineItem[] = [];
 
-export function getMarkdownOutlineFromBlocks(blocks: MarkdownBlock[]): OutlineItem[] {
-  const seen = new Map<string, number>();
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
 
-  return blocks
-    .filter((block) => block.type === "heading")
-    .map((block) => {
-      const baseId = slugifyHeading(block.text);
-      const count = seen.get(baseId) ?? 0;
-      seen.set(baseId, count + 1);
+    if (token.type !== "heading_open" || !token.map) {
+      continue;
+    }
 
-      return {
-        id: count === 0 ? baseId : `${baseId}-${count + 1}`,
-        level: block.level,
-        text: block.text,
-        line: block.source.startLine,
-      };
+    const inlineToken = tokens[index + 1];
+    const text = inlineToken ? getTokenText(inlineToken) : "";
+    const level = Number(token.tag.replace("h", ""));
+
+    outline.push({
+      id: slugHeading(text),
+      level: Number.isFinite(level) ? level : 1,
+      text,
+      line: token.map[0] + 1,
     });
+  }
+
+  return outline;
 }
 
 export function getActiveOutlineItem(
@@ -56,4 +53,25 @@ export function getActiveOutlineItem(
   }
 
   return activeItem;
+}
+
+function getTokenText(token: Token): string {
+  if (token.children) {
+    return token.children.map(getTokenText).join("");
+  }
+
+  if (
+    token.type === "text" ||
+    token.type === "code_inline" ||
+    token.type === "emoji" ||
+    token.type === "image"
+  ) {
+    return token.content;
+  }
+
+  if (token.type === "softbreak" || token.type === "hardbreak") {
+    return " ";
+  }
+
+  return "";
 }

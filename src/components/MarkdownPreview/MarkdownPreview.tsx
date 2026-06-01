@@ -1,151 +1,80 @@
-import { memo, useLayoutEffect, useMemo, useRef } from "react";
-import { type DocumentDirection, type Theme } from "../../types";
-import { parseMarkdown } from "../../markdown/parseMarkdown";
-import { type MarkdownBlock } from "../../markdown/types";
-import { MarkdownBlockView } from "../MarkdownBlockView";
+import { memo, useEffect, useRef } from "react";
+import { useMarkdownRenderWorker } from "../../markdown/useMarkdownRenderWorker";
+import { type DocumentDirection } from "../../types";
 import "./MarkdownPreview.css";
 
 type MarkdownPreviewProps = {
   markdown: string;
-  blocks?: MarkdownBlock[];
+  direction: DocumentDirection;
   currentLine: number;
-  theme: Theme;
-  direction: DocumentDirection;
-  loadImage?: (src: string) => Promise<Blob>;
 };
-
-const ACTIVE_BLOCK_CLASS = "active-preview-block";
-const ACTIVE_LINE_CLASS = "active-preview-line";
-
-type ActivePreviewElements = {
-  block: Element | null;
-  line: Element | null;
-};
-
-type MarkdownPreviewContentProps = {
-  blocks: MarkdownBlock[];
-  theme: Theme;
-  direction: DocumentDirection;
-  loadImage?: (src: string) => Promise<Blob>;
-};
-
-function findActiveBlockIndex(blocks: MarkdownBlock[], currentLine: number) {
-  let low = 0;
-  let high = blocks.length - 1;
-
-  while (low <= high) {
-    const middle = Math.floor((low + high) / 2);
-    const block = blocks[middle];
-
-    if (currentLine < block.source.startLine) {
-      high = middle - 1;
-    } else if (currentLine > block.source.endLine) {
-      low = middle + 1;
-    } else {
-      return middle;
-    }
-  }
-
-  return -1;
-}
-
-function clearActivePreviewElements(activeElements: ActivePreviewElements) {
-  activeElements.block?.classList.remove(ACTIVE_BLOCK_CLASS);
-  activeElements.line?.classList.remove(ACTIVE_LINE_CLASS);
-  activeElements.block = null;
-  activeElements.line = null;
-}
-
-const MarkdownPreviewContent = memo(function MarkdownPreviewContent({
-  blocks,
-  theme,
-  direction,
-  loadImage,
-}: MarkdownPreviewContentProps) {
-  return (
-    <>
-      {blocks.map((block, index) => (
-        <MarkdownBlockView
-          key={index}
-          block={block}
-          blockIndex={index}
-          theme={theme}
-          direction={direction}
-          loadImage={loadImage}
-        />
-      ))}
-    </>
-  );
-});
 
 export const MarkdownPreview = memo(function MarkdownPreview({
   markdown,
-  blocks,
-  currentLine,
-  theme,
   direction,
-  loadImage,
+  currentLine,
 }: MarkdownPreviewProps) {
-  const previewContentRef = useRef<HTMLDivElement>(null);
-  const activeElementsRef = useRef<ActivePreviewElements>({
-    block: null,
-    line: null,
-  });
-  const parsedBlocks = useMemo(
-    () => blocks ?? parseMarkdown(markdown),
-    [blocks, markdown],
-  );
+  const previewRef = useRef<HTMLDivElement>(null);
+  const renderedHtml = useMarkdownRenderWorker(markdown);
 
-  useLayoutEffect(() => {
-    const previewContent = previewContentRef.current;
+  useEffect(() => {
+    markActivePreviewLine(previewRef.current, currentLine);
+  }, [currentLine, renderedHtml]);
 
-    clearActivePreviewElements(activeElementsRef.current);
-
-    if (!previewContent || parsedBlocks.length === 0) {
-      return;
-    }
-
-    const activeBlockIndex = findActiveBlockIndex(parsedBlocks, currentLine);
-
-    if (activeBlockIndex === -1) {
-      return;
-    }
-
-    const activeBlock = parsedBlocks[activeBlockIndex];
-    const blockElement = previewContent.children.item(activeBlockIndex);
-
-    if (!blockElement) {
-      return;
-    }
-
-    if (activeBlock.type === "list") {
-      const activeItemIndex = activeBlock.items.findIndex(
-        (item) => item.line === currentLine,
-      );
-      const activeLineElement =
-        activeItemIndex === -1 ? null : blockElement.children.item(activeItemIndex);
-
-      activeLineElement?.classList.add(ACTIVE_LINE_CLASS);
-      activeElementsRef.current.line = activeLineElement;
-      return;
-    }
-
-    blockElement.classList.add(ACTIVE_BLOCK_CLASS);
-    activeElementsRef.current.block = blockElement;
-  }, [parsedBlocks, currentLine]);
-
-  if (parsedBlocks.length === 0) {
+  if (renderedHtml.trim().length === 0) {
     return <p className="empty-preview">Nothing to preview yet.</p>;
   }
 
   return (
-    <div ref={previewContentRef} className="preview-content">
-      <MarkdownPreviewContent
-        blocks={parsedBlocks}
-        theme={theme}
-        direction={direction}
-        loadImage={loadImage}
-      />
-    </div>
+    <div
+      ref={previewRef}
+      className="markdown-preview"
+      dir={direction}
+      dangerouslySetInnerHTML={{ __html: renderedHtml }}
+    />
   );
 });
+
+function markActivePreviewLine(root: HTMLElement | null, currentLine: number) {
+  if (!root) {
+    return;
+  }
+
+  for (const activeElement of root.querySelectorAll(".active-preview")) {
+    activeElement.classList.remove("active-preview");
+    activeElement.removeAttribute("aria-current");
+  }
+
+  const candidates = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-source-line][data-source-end-line]"),
+  );
+  const activeElement = candidates
+    .filter((element) => containsLine(element, currentLine))
+    .sort(getNarrowestSourceRange)[0];
+
+  activeElement?.classList.add("active-preview");
+  activeElement?.setAttribute("aria-current", "true");
+}
+
+function containsLine(element: HTMLElement, currentLine: number) {
+  const startLine = Number(element.dataset.sourceLine);
+  const endLine = Number(element.dataset.sourceEndLine);
+
+  return (
+    Number.isFinite(startLine) &&
+    Number.isFinite(endLine) &&
+    startLine <= currentLine &&
+    currentLine <= endLine
+  );
+}
+
+function getNarrowestSourceRange(first: HTMLElement, second: HTMLElement) {
+  return getSourceRangeLength(first) - getSourceRangeLength(second);
+}
+
+function getSourceRangeLength(element: HTMLElement) {
+  const startLine = Number(element.dataset.sourceLine);
+  const endLine = Number(element.dataset.sourceEndLine);
+
+  return endLine - startLine;
+}

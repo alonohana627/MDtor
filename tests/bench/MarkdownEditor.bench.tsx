@@ -1,14 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, bench, describe, vi } from "vitest";
-import { getCurrentLine, MarkdownEditor } from "../../src/components/MarkdownEditor";
+import { MarkdownEditor } from "../../src/components/MarkdownEditor";
 import { makeMarkdownDocument } from "./fixtures";
-
-vi.mock("../../src/components/MarkdownHighlightLayer", () => ({
-  MarkdownHighlightLayer: vi.fn(() => (
-    <pre data-testid="markdown-highlight-layer">highlight</pre>
-  )),
-}));
 
 const small = makeMarkdownDocument(10);
 const medium = makeMarkdownDocument(250);
@@ -69,19 +63,5 @@ describe("MarkdownEditor render", () => {
 
   bench("render large editor", () => {
     renderMarkdownEditor(large);
-  });
-});
-
-describe("getCurrentLine", () => {
-  bench("get current line near start", () => {
-    getCurrentLine(large, 100);
-  });
-
-  bench("get current line near middle", () => {
-    getCurrentLine(large, Math.floor(large.length / 2));
-  });
-
-  bench("get current line near end", () => {
-    getCurrentLine(large, large.length - 1);
   });
 });

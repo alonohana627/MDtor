@@ -185,7 +185,15 @@ describe("App", () => {
     });
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
-      value: vi.fn(() => ({ matches: false })),
+      value: vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
     });
 
     fireEvent.pointerDown(divider, { pointerId: 1 });
@@ -214,7 +222,15 @@ describe("App", () => {
     });
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
-      value: vi.fn(() => ({ matches: true })),
+      value: vi.fn((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
     });
 
     fireEvent.pointerDown(divider, { pointerId: 1 });
@@ -239,7 +255,7 @@ describe("App", () => {
       }),
     ).toHaveAttribute("aria-pressed", "false");
 
-    const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
+    const editor = document.querySelector(".cm-scroller") as HTMLElement;
     const preview = document.querySelector(".preview") as HTMLElement;
     Object.defineProperties(editor, {
       clientHeight: { configurable: true, value: 500 },
@@ -274,7 +290,7 @@ describe("App", () => {
     expect(syncButton).toHaveAttribute("aria-pressed", "true");
     expect(window.localStorage.getItem("mdtor:editor-preview-scroll-sync")).toBe("true");
 
-    const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
+    const editor = document.querySelector(".cm-scroller") as HTMLElement;
     const preview = document.querySelector(".preview") as HTMLElement;
     Object.defineProperties(editor, {
       clientHeight: { configurable: true, value: 500 },
@@ -322,7 +338,7 @@ describe("App", () => {
       }),
     );
 
-    const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
+    const editor = document.querySelector(".cm-scroller") as HTMLElement;
     const preview = document.querySelector(".preview") as HTMLElement;
     Object.defineProperties(editor, {
       clientHeight: { configurable: true, value: 500 },
@@ -352,38 +368,35 @@ describe("App", () => {
   });
 
   it("jumps from outline items to the selected editor line", () => {
+    const setCurrentLine = vi.fn();
+    const workspace = createWorkspace({
+      currentLine: 1,
+      markdown: "# One\n\nText\n\n## Two\n\nMore",
+      setCurrentLine,
+    });
+    useProjectWorkspaceMock.mockReturnValue(workspace);
+
+    render(<App />);
+
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);
       return 1;
     });
-    const setCurrentLine = vi.fn();
-    useProjectWorkspaceMock.mockReturnValue(
-      createWorkspace({
-        currentLine: 1,
-        markdown: "# One\n\nText\n\n## Two\n\nMore",
-        setCurrentLine,
-      }),
-    );
 
-    render(<App />);
-
-    const editor = screen.getByLabelText("Markdown editor") as HTMLTextAreaElement;
-    const setSelectionRange = vi.spyOn(editor, "setSelectionRange");
+    const editor = workspace.editorRef.current;
+    const setSelectionRange = vi.spyOn(editor!, "setSelectionRange");
     const targetHeading = screen.getByRole("heading", { name: "Two" });
     Object.defineProperty(targetHeading, "scrollIntoView", {
       configurable: true,
       value: vi.fn(),
     });
-    Object.defineProperty(editor, "scrollTo", {
-      configurable: true,
-      value: vi.fn(),
-    });
+    const scrollTo = vi.spyOn(editor!, "scrollTo");
 
     fireEvent.click(screen.getByRole("button", { name: "Two" }));
 
     expect(setCurrentLine).toHaveBeenCalledWith(5);
     expect(setSelectionRange).toHaveBeenCalledWith(13, 13);
-    expect(editor.scrollTo).toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenCalled();
     expect(targetHeading.scrollIntoView).toHaveBeenCalledWith({
       block: "start",
       behavior: "auto",

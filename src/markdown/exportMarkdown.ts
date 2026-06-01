@@ -1,57 +1,61 @@
-import { parseMarkdown } from "./parseMarkdown";
-import { type MarkdownBlock } from "./types";
+import DOMPurify from "dompurify";
+import MarkdownIt from "markdown-it";
+import type Token from "markdown-it/lib/token.mjs";
+import markdownItAnchor from "markdown-it-anchor";
+import markdownItFootnote from "markdown-it-footnote";
+import markdownItTaskLists from "markdown-it-task-lists";
+import {
+  escapeHtml,
+  highlightCodeToHtml,
+  renderHighlightedCodeBlockHtml,
+} from "./codeHighlighting";
+import { slugifyHeading } from "./headingSlugs";
 
 const textEncoder = new TextEncoder();
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+const exportHtmlRenderer = new MarkdownIt("commonmark", {
+  html: false,
+  linkify: false,
+  typographer: false,
+  highlight: highlightCodeToHtml,
+})
+  .use(markdownItTaskLists, {
+    enabled: false,
+    label: true,
+    labelAfter: true,
+  })
+  .use(markdownItFootnote)
+  .use(markdownItAnchor, {
+    slugify: slugifyHeading,
+  });
+
+exportHtmlRenderer.validateLink = () => true;
+exportHtmlRenderer.renderer.rules.fence = renderCodeBlock;
+exportHtmlRenderer.renderer.rules.code_block = renderCodeBlock;
 
 function escapeXml(value: string) {
   return escapeHtml(value).replace(/'/g, "&apos;");
 }
 
-function renderInlineHtml(text: string) {
-  return escapeHtml(text)
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+|mailto:[^)]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/\n/g, "<br />");
+function renderExportHtml(markdown: string) {
+  return DOMPurify.sanitize(exportHtmlRenderer.render(markdown), {
+    ALLOW_UNKNOWN_PROTOCOLS: false,
+    USE_PROFILES: { html: true },
+  });
 }
 
-function renderHtmlBlock(block: MarkdownBlock) {
-  if (block.type === "heading") {
-    return `<h${block.level}>${renderInlineHtml(block.text)}</h${block.level}>`;
-  }
+function getExportMarkdownTokens(markdown: string) {
+  return exportHtmlRenderer.parse(markdown, {});
+}
 
-  if (block.type === "paragraph") {
-    return `<p>${renderInlineHtml(block.text)}</p>`;
-  }
+function renderCodeBlock(tokens: Token[], index: number) {
+  const token = tokens[index];
 
-  if (block.type === "blockquote") {
-    return `<blockquote>${renderInlineHtml(block.text)}</blockquote>`;
-  }
-
-  if (block.type === "list") {
-    const tag = block.ordered ? "ol" : "ul";
-    const items = block.items
-      .map((item) => `<li>${renderInlineHtml(item.text)}</li>`)
-      .join("\n");
-
-    return `<${tag}>\n${items}\n</${tag}>`;
-  }
-
-  return `<pre><code class="language-${escapeHtml(block.language)}">${escapeHtml(block.code)}</code></pre>`;
+  return renderHighlightedCodeBlockHtml(token.content, token.info);
 }
 
 export function markdownToStandaloneHtml(markdown: string, title = "Document") {
-  const body = parseMarkdown(markdown).map(renderHtmlBlock).join("\n");
+  const body = renderExportHtml(markdown);
 
   return `<!doctype html>
 <html lang="en">
@@ -79,29 +83,161 @@ ${body}
 `;
 }
 
-function blockToPlainLines(block: MarkdownBlock) {
-  if (block.type === "heading") {
-    return [`${"#".repeat(block.level)} ${block.text}`, ""];
+function markdownToPlainLines(markdown: string) {
+  const tokens = getExportMarkdownTokens(markdown);
+  const lines: string[] = [];
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === "heading_open") {
+      lines.push(
+        `${"#".repeat(getHeadingLevel(token))} ${getInlineText(tokens[index + 1])}`,
+      );
+      lines.push("");
+      continue;
+    }
+
+    if (token.type === "paragraph_open") {
+      lines.push(getInlineText(tokens[index + 1]));
+      lines.push("");
+      continue;
+    }
+
+    if (token.type === "blockquote_open") {
+      const result = renderPlainBlockquote(tokens, index);
+      lines.push(...result.lines);
+      index = result.nextIndex;
+      continue;
+    }
+
+    if (token.type === "bullet_list_open" || token.type === "ordered_list_open") {
+      const result = renderPlainList(tokens, index, token.type === "ordered_list_open");
+      lines.push(...result.lines);
+      index = result.nextIndex;
+      continue;
+    }
+
+    if (token.type === "fence" || token.type === "code_block") {
+      lines.push(...token.content.replace(/\n$/, "").split("\n"));
+      lines.push("");
+    }
   }
 
-  if (block.type === "paragraph" || block.type === "blockquote") {
-    return [block.text, ""];
-  }
-
-  if (block.type === "list") {
-    return [
-      ...block.items.map((item, index) =>
-        block.ordered ? `${index + 1}. ${item.text}` : `- ${item.text}`,
-      ),
-      "",
-    ];
-  }
-
-  return [block.code, ""];
+  return lines;
 }
 
-function markdownToPlainLines(markdown: string) {
-  return parseMarkdown(markdown).flatMap(blockToPlainLines);
+function getHeadingLevel(token: Token) {
+  const level = Number(token.tag.replace("h", ""));
+
+  return Number.isFinite(level) ? level : 1;
+}
+
+function getInlineText(token: Token | undefined): string {
+  if (!token) {
+    return "";
+  }
+
+  if (token.children) {
+    return token.children.map(getInlineText).join("");
+  }
+
+  if (token.type === "text" || token.type === "code_inline" || token.type === "image") {
+    return token.content;
+  }
+
+  if (token.type === "softbreak" || token.type === "hardbreak") {
+    return "\n";
+  }
+
+  return "";
+}
+
+function findMatchingBlockClose(tokens: Token[], openIndex: number, closeType: string) {
+  const openType = tokens[openIndex].type;
+  let depth = 0;
+
+  for (let index = openIndex; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === openType) {
+      depth += 1;
+    } else if (token.type === closeType) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return tokens.length - 1;
+}
+
+function findFirstInlineToken(tokens: Token[], startIndex: number, endIndex: number) {
+  for (let index = startIndex; index < endIndex; index += 1) {
+    if (tokens[index].type === "inline") {
+      return tokens[index];
+    }
+  }
+
+  return undefined;
+}
+
+function renderPlainList(tokens: Token[], startIndex: number, ordered: boolean) {
+  const closeIndex = findMatchingBlockClose(
+    tokens,
+    startIndex,
+    ordered ? "ordered_list_close" : "bullet_list_close",
+  );
+  const lines: string[] = [];
+  const startAttribute = tokens[startIndex].attrGet("start");
+  let itemNumber = startAttribute ? Number(startAttribute) : 1;
+
+  if (!Number.isFinite(itemNumber)) {
+    itemNumber = 1;
+  }
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    const token = tokens[index];
+
+    if (token.type !== "list_item_open") {
+      continue;
+    }
+
+    const itemCloseIndex = findMatchingBlockClose(tokens, index, "list_item_close");
+    const inlineToken = findFirstInlineToken(tokens, index + 1, itemCloseIndex);
+    const marker = ordered ? `${itemNumber}.` : "-";
+
+    lines.push(`${marker} ${getInlineText(inlineToken)}`);
+    itemNumber += 1;
+    index = itemCloseIndex;
+  }
+
+  lines.push("");
+
+  return {
+    lines,
+    nextIndex: closeIndex,
+  };
+}
+
+function renderPlainBlockquote(tokens: Token[], startIndex: number) {
+  const closeIndex = findMatchingBlockClose(tokens, startIndex, "blockquote_close");
+  const lines: string[] = [];
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    if (tokens[index].type === "inline") {
+      lines.push(getInlineText(tokens[index]));
+    }
+  }
+
+  lines.push("");
+
+  return {
+    lines,
+    nextIndex: closeIndex,
+  };
 }
 
 function escapePdfText(value: string) {
@@ -276,65 +412,218 @@ function addDocxHyperlink(context: DocxRenderContext, target: string) {
   return id;
 }
 
-function renderDocxRuns(text: string, context: DocxRenderContext) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\)|`[^`]+`)/g);
+function renderDocxTextRun(text: string, runStyle?: string) {
+  const styleXml = runStyle ? `<w:rPr><w:rStyle w:val="${runStyle}"/></w:rPr>` : "";
 
-  return parts
-    .map((part) => {
-      const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (link) {
-        const target = getSafeDocxLinkTarget(link[2]);
+  return text
+    .split("\n")
+    .map((part, index) => {
+      const breakXml = index === 0 ? "" : "<w:br/>";
 
-        if (!target) {
-          return `<w:r><w:t>${escapeXml(link[1])}</w:t></w:r>`;
-        }
-
-        const relationshipId = addDocxHyperlink(context, target);
-
-        return `<w:hyperlink r:id="${relationshipId}" w:history="1"><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr><w:t>${escapeXml(link[1])}</w:t></w:r></w:hyperlink>`;
-      }
-
-      if (part.startsWith("`") && part.endsWith("`")) {
-        return `<w:r><w:rPr><w:rStyle w:val="Code"/></w:rPr><w:t>${escapeXml(part.slice(1, -1))}</w:t></w:r>`;
-      }
-
-      return `<w:r><w:t>${escapeXml(part)}</w:t></w:r>`;
+      return `<w:r>${styleXml}${breakXml}<w:t>${escapeXml(part)}</w:t></w:r>`;
     })
     .join("");
 }
 
-function renderDocxParagraph(text: string, context: DocxRenderContext, style?: string) {
-  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
+function findMatchingInlineClose(tokens: Token[], openIndex: number, closeType: string) {
+  const openType = tokens[openIndex].type;
+  let depth = 0;
 
-  return `<w:p>${styleXml}${renderDocxRuns(text, context)}</w:p>`;
+  for (let index = openIndex; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === openType) {
+      depth += 1;
+    } else if (token.type === closeType) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return openIndex;
 }
 
-function renderDocxBlock(block: MarkdownBlock, context: DocxRenderContext) {
-  if (block.type === "heading") {
-    return renderDocxParagraph(block.text, context, `Heading${block.level}`);
+function renderDocxInlineTokens(tokens: Token[], context: DocxRenderContext): string {
+  let xml = "";
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === "link_open") {
+      const closeIndex = findMatchingInlineClose(tokens, index, "link_close");
+      const href = token.attrGet("href");
+      const target = href ? getSafeDocxLinkTarget(href) : null;
+      const innerXml = renderDocxInlineTokens(
+        tokens.slice(index + 1, closeIndex),
+        context,
+      );
+
+      if (target) {
+        const relationshipId = addDocxHyperlink(context, target);
+
+        xml += `<w:hyperlink r:id="${relationshipId}" w:history="1">${innerXml}</w:hyperlink>`;
+      } else {
+        xml += innerXml;
+      }
+
+      index = closeIndex;
+      continue;
+    }
+
+    if (token.type === "text" || token.type === "image") {
+      xml += renderDocxTextRun(token.content);
+      continue;
+    }
+
+    if (token.type === "code_inline") {
+      xml += renderDocxTextRun(token.content, "Code");
+      continue;
+    }
+
+    if (token.type === "softbreak" || token.type === "hardbreak") {
+      xml += "<w:r><w:br/></w:r>";
+      continue;
+    }
+
+    if (token.children) {
+      xml += renderDocxInlineTokens(token.children, context);
+    }
   }
 
-  if (block.type === "paragraph") {
-    return renderDocxParagraph(block.text, context);
+  return xml;
+}
+
+function renderDocxParagraph(
+  inlineToken: Token | undefined,
+  context: DocxRenderContext,
+  style?: string,
+  prefix = "",
+) {
+  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
+  const prefixXml = prefix ? renderDocxTextRun(prefix) : "";
+  const inlineXml = inlineToken?.children
+    ? renderDocxInlineTokens(inlineToken.children, context)
+    : "";
+
+  return `<w:p>${styleXml}${prefixXml}${inlineXml}</w:p>`;
+}
+
+function renderDocxTextParagraph(text: string, style?: string) {
+  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
+
+  return `<w:p>${styleXml}${renderDocxTextRun(text, style === "Code" ? "Code" : undefined)}</w:p>`;
+}
+
+function renderDocxList(
+  tokens: Token[],
+  startIndex: number,
+  context: DocxRenderContext,
+  ordered: boolean,
+) {
+  const closeIndex = findMatchingBlockClose(
+    tokens,
+    startIndex,
+    ordered ? "ordered_list_close" : "bullet_list_close",
+  );
+  const startAttribute = tokens[startIndex].attrGet("start");
+  let itemNumber = startAttribute ? Number(startAttribute) : 1;
+  let xml = "";
+
+  if (!Number.isFinite(itemNumber)) {
+    itemNumber = 1;
   }
 
-  if (block.type === "blockquote") {
-    return renderDocxParagraph(block.text, context, "Quote");
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    const token = tokens[index];
+
+    if (token.type !== "list_item_open") {
+      continue;
+    }
+
+    const itemCloseIndex = findMatchingBlockClose(tokens, index, "list_item_close");
+    const inlineToken = findFirstInlineToken(tokens, index + 1, itemCloseIndex);
+    const marker = ordered ? `${itemNumber}. ` : "- ";
+
+    xml += renderDocxParagraph(inlineToken, context, "ListParagraph", marker);
+    itemNumber += 1;
+    index = itemCloseIndex;
   }
 
-  if (block.type === "list") {
-    return block.items
-      .map((item, index) =>
-        renderDocxParagraph(
-          `${block.ordered ? `${index + 1}.` : "-"} ${item.text}`,
-          context,
-          "ListParagraph",
-        ),
-      )
-      .join("");
+  return {
+    xml,
+    nextIndex: closeIndex,
+  };
+}
+
+function renderDocxBlockquote(
+  tokens: Token[],
+  startIndex: number,
+  context: DocxRenderContext,
+) {
+  const closeIndex = findMatchingBlockClose(tokens, startIndex, "blockquote_close");
+  let xml = "";
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    if (tokens[index].type === "inline") {
+      xml += renderDocxParagraph(tokens[index], context, "Quote");
+    }
   }
 
-  return renderDocxParagraph(block.code, context, "Code");
+  return {
+    xml,
+    nextIndex: closeIndex,
+  };
+}
+
+function renderDocxBody(markdown: string, context: DocxRenderContext) {
+  const tokens = getExportMarkdownTokens(markdown);
+  let xml = "";
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === "heading_open") {
+      xml += renderDocxParagraph(
+        tokens[index + 1],
+        context,
+        `Heading${getHeadingLevel(token)}`,
+      );
+      continue;
+    }
+
+    if (token.type === "paragraph_open") {
+      xml += renderDocxParagraph(tokens[index + 1], context);
+      continue;
+    }
+
+    if (token.type === "blockquote_open") {
+      const result = renderDocxBlockquote(tokens, index, context);
+      xml += result.xml;
+      index = result.nextIndex;
+      continue;
+    }
+
+    if (token.type === "bullet_list_open" || token.type === "ordered_list_open") {
+      const result = renderDocxList(
+        tokens,
+        index,
+        context,
+        token.type === "ordered_list_open",
+      );
+      xml += result.xml;
+      index = result.nextIndex;
+      continue;
+    }
+
+    if (token.type === "fence" || token.type === "code_block") {
+      xml += renderDocxTextParagraph(token.content.replace(/\n$/, ""), "Code");
+    }
+  }
+
+  return xml;
 }
 
 export function markdownToDocxBytes(markdown: string) {
@@ -342,9 +631,7 @@ export function markdownToDocxBytes(markdown: string) {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
-    ${parseMarkdown(markdown)
-      .map((block) => renderDocxBlock(block, context))
-      .join("\n")}
+    ${renderDocxBody(markdown, context)}
     <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
   </w:body>
 </w:document>`;

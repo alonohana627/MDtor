@@ -1,27 +1,20 @@
 import { memo, type Ref } from "react";
-import { type MarkdownBlock } from "../../markdown/types";
-import { type DocumentDirection, type Theme } from "../../types";
+import { type DocumentDirection } from "../../types";
 import { MarkdownPreview } from "../MarkdownPreview";
 
 type MarkdownPreviewPaneProps = {
   previewRef?: Ref<HTMLElement>;
   markdown: string;
-  blocks?: MarkdownBlock[];
-  currentLine: number;
-  theme: Theme;
   direction: DocumentDirection;
-  loadImage?: (src: string) => Promise<Blob>;
+  currentLine: number;
   onPreviewScroll?: (preview: HTMLElement) => void;
 };
 
 export const MarkdownPreviewPane = memo(function MarkdownPreviewPane({
   previewRef,
   markdown,
-  blocks,
-  currentLine,
-  theme,
   direction,
-  loadImage,
+  currentLine,
   onPreviewScroll,
 }: MarkdownPreviewPaneProps) {
   return (
@@ -38,11 +31,8 @@ export const MarkdownPreviewPane = memo(function MarkdownPreviewPane({
       >
         <MarkdownPreview
           markdown={markdown}
-          blocks={blocks}
-          currentLine={currentLine}
-          theme={theme}
           direction={direction}
-          loadImage={loadImage}
+          currentLine={currentLine}
         />
       </article>
     </section>

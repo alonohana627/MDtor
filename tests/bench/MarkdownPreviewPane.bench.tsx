@@ -30,9 +30,8 @@ function renderMarkdownPreviewPane(markdown: string) {
     root.render(
       <MarkdownPreviewPane
         markdown={markdown}
-        currentLine={1}
-        theme="light"
         direction="ltr"
+        currentLine={1}
         onPreviewScroll={vi.fn()}
       />,
     );
