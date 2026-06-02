@@ -204,7 +204,7 @@ function addRtlSettingsDirection(settingsXml: string) {
 
 function addRtlNumberingDirection(numberingXml: string) {
   return addRtlParagraphProperties(numberingXml)
-    .replace(/<w:lvlJc\b[^>]*\/>/g, '<w:lvlJc w:val="right"/>')
+    .replace(/<w:lvlJc\b[^>]*\/>/g, '<w:lvlJc w:val="start"/>')
     .replace(/<w:ind\b([^>]*)\/>/g, (_tag, attributes) => {
       const attrs = String(attributes);
       const leftValue = attrs.match(/\s+w:left="([^"]+)"/)?.[1];
@@ -276,7 +276,7 @@ function mergeRtlParagraphProperties(content: string) {
 
   nextContent = insertBeforeFirstMatchingTag(
     nextContent,
-    '<w:jc w:val="right"/>',
+    '<w:jc w:val="start"/>',
     ["textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle"],
   );
   nextContent += runProperties
@@ -373,7 +373,7 @@ function ensureNormalStyle(stylesXml: string) {
 }
 
 function rtlParagraphPropertiesXml() {
-  return `<w:bidi/><w:jc w:val="right"/><w:rPr>${rtlRunPropertiesXml()}</w:rPr>`;
+  return `<w:bidi/><w:jc w:val="start"/><w:rPr>${rtlRunPropertiesXml()}</w:rPr>`;
 }
 
 function rtlRunPropertiesXml() {
@@ -385,7 +385,7 @@ function createDocxStyles(direction: ExportDocumentDirection) {
     direction === "rtl"
       ? {
           bidirectional: true,
-          alignment: AlignmentType.RIGHT,
+          alignment: AlignmentType.START,
           run: { rightToLeft: true },
         }
       : {};
@@ -1006,7 +1006,7 @@ function getSafeDocxLinkTarget(href: string) {
 }
 
 function getDocxAlignment(direction: ExportDocumentDirection) {
-  return direction === "rtl" ? AlignmentType.RIGHT : AlignmentType.LEFT;
+  return direction === "rtl" ? AlignmentType.START : AlignmentType.LEFT;
 }
 
 function stripInertMarkdownLinkTargets(text: string) {

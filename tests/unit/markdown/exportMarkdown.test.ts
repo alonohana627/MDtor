@@ -176,10 +176,10 @@ describe("exportMarkdown", () => {
     expect(documentXml).toContain("<w:bidi/>");
     expect(documentXml).toContain("<w:sectPr");
     expect(documentXml).toContain("<w:rtlGutter/>");
-    expect(documentXml).toContain('<w:jc w:val="right"/>');
+    expect(documentXml).toContain('<w:jc w:val="start"/>');
     expect(documentXml).not.toContain("<w:pPr><w:bidi/><w:pStyle");
     expect(documentXml).toMatch(
-      /<w:pPr><w:pStyle w:val="Heading1"\/><w:bidi\/>[\s\S]*?<w:jc w:val="right"\/>[\s\S]*?<\/w:pPr>/,
+      /<w:pPr><w:pStyle w:val="Heading1"\/><w:bidi\/>[\s\S]*?<w:jc w:val="start"\/>[\s\S]*?<\/w:pPr>/,
     );
     expect(documentXml).toContain("<w:rtl/>");
     expect(documentXml).toContain("<w:cs/>");
@@ -187,7 +187,7 @@ describe("exportMarkdown", () => {
     expect(documentXml).toContain("<w:hyperlink");
     expect(relsXml).toContain('Target="https://example.com"');
     expect(documentXml).toContain("<w:numPr>");
-    expect(numberingXml).toContain('w:val="right"');
+    expect(numberingXml).toContain('w:val="start"');
     expect(numberingXml).toContain("<w:ind");
     expect(numberingXml).toContain('w:right="720"');
     expect(numberingXml).toContain('w:start="720"');
@@ -196,7 +196,7 @@ describe("exportMarkdown", () => {
     expect(settingsXml).toContain('w:bidi="he-IL"');
     expect(stylesXml).toContain('w:styleId="Normal"');
     expect(stylesXml).toContain("<w:bidi/>");
-    expect(stylesXml).toContain('<w:jc w:val="right"/>');
+    expect(stylesXml).toContain('<w:jc w:val="start"/>');
     expect(stylesXml).toContain("<w:rtl/>");
     expect(stylesXml).toContain("<w:cs/>");
     expect(stylesXml).toContain('w:bidi="he-IL"');

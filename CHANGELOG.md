@@ -3,7 +3,7 @@
 ## 0.3.1
 
 - Fixed project and editor shortcuts on non-Latin keyboard layouts, including `Ctrl+S`, `Ctrl+Z`, and `Ctrl+Shift+M` when using Hebrew input.
-- Fixed RTL exports so PDF output keeps right-to-left direction directly on the rendered export element and DOCX exports force RTL across document defaults, styles, sections, paragraphs, runs, complex-script language, and numbering while preserving WordprocessingML property order.
+- Fixed RTL exports so PDF output keeps right-to-left direction directly on the rendered export element and DOCX exports force RTL across document defaults, styles, sections, paragraphs, runs, complex-script language, and numbering while preserving WordprocessingML property order and using logical RTL start alignment.
 
 ## 0.3.0
 
