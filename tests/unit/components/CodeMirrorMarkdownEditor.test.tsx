@@ -50,6 +50,32 @@ describe("CodeMirrorMarkdownEditor", () => {
     expect(onChange).toHaveBeenCalledWith("Text!");
   });
 
+  it("undoes and redoes by physical key on non-Latin layouts", () => {
+    const onChange = vi.fn();
+    const editorRef = createRef<CodeMirrorMarkdownEditorHandle>();
+    const { container } = render(
+      <CodeMirrorMarkdownEditor
+        value="Text"
+        direction="ltr"
+        editorRef={editorRef}
+        onChange={onChange}
+      />,
+    );
+    const content = container.querySelector(".cm-content") as HTMLElement;
+
+    editorRef.current?.replaceDocument("Text!");
+    fireEvent.keyDown(content, { key: "ז", code: "KeyZ", ctrlKey: true });
+    fireEvent.keyDown(content, {
+      key: "ז",
+      code: "KeyZ",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(onChange).toHaveBeenCalledWith("Text");
+    expect(onChange).toHaveBeenLastCalledWith("Text!");
+  });
+
   it("updates document direction and external values without recreating the editor", () => {
     const onChange = vi.fn();
     const { container, rerender } = render(

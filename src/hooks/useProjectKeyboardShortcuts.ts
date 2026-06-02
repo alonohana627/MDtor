@@ -32,7 +32,12 @@ export function useProjectKeyboardShortcuts({
       }
 
       const key = event.key.toLowerCase();
-      const isNextFileShortcut = key === "tab" || (event.altKey && key === "arrowright");
+      const code = event.code;
+      const isShortcutKey = (shortcutKey: string, shortcutCode: string) =>
+        key === shortcutKey || code === shortcutCode;
+      const isNextFileShortcut =
+        isShortcutKey("tab", "Tab") ||
+        (event.altKey && isShortcutKey("arrowright", "ArrowRight"));
 
       if (isNextFileShortcut) {
         event.preventDefault();
@@ -40,25 +45,25 @@ export function useProjectKeyboardShortcuts({
         if (!isBusy) {
           switchToNextFile();
         }
-      } else if (key === "s") {
+      } else if (isShortcutKey("s", "KeyS")) {
         event.preventDefault();
 
         if (!isBusy && activeFilePathRef.current) {
           handleManualSave();
         }
-      } else if (key === "o") {
+      } else if (isShortcutKey("o", "KeyO")) {
         event.preventDefault();
 
         if (!isBusy) {
           openProjectFolder();
         }
-      } else if (key === "n") {
+      } else if (isShortcutKey("n", "KeyN")) {
         event.preventDefault();
 
         if (!isBusy && isProjectOpen) {
           createNewFile();
         }
-      } else if (key === "p") {
+      } else if (isShortcutKey("p", "KeyP")) {
         event.preventDefault();
 
         if (!isBusy) {

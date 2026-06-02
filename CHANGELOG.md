@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Fixed project and editor shortcuts on non-Latin keyboard layouts, including `Ctrl+S`, `Ctrl+Z`, and `Ctrl+Shift+M` when using Hebrew input.
+- Fixed RTL exports so PDF output keeps right-to-left direction directly on the rendered export element and DOCX exports force RTL across document defaults, styles, sections, paragraphs, runs, complex-script language, and numbering while preserving WordprocessingML property order.
+
 ## 0.3.0
 
 - Improved large-document editing responsiveness by moving active editing to CodeMirror, deferring preview/outline/stat rendering away from the keystroke path, and adding large-document performance coverage.

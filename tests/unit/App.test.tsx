@@ -201,7 +201,12 @@ describe("App", () => {
     expect(screen.queryByLabelText("Export controls")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit Zen" })).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: "M", ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(window, {
+      key: "צ",
+      code: "KeyM",
+      ctrlKey: true,
+      shiftKey: true,
+    });
 
     expect(container.querySelector(".app-shell")).toHaveAttribute("data-zen", "false");
     expect(screen.getByLabelText("Writer tools")).toBeInTheDocument();

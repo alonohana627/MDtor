@@ -68,6 +68,8 @@ export function createExportHtmlElementFromDocuments(
 
   exportElement.className = "markdown-preview export-document";
   exportElement.dir = getExportDirection(direction);
+  exportElement.style.direction = getExportDirection(direction);
+  exportElement.style.textAlign = direction === "rtl" ? "right" : "left";
   exportElement.dataset.exportTitle = title;
   exportElement.innerHTML = article?.innerHTML ?? "";
   exportElement.append(createExportStyleElement(direction));
@@ -128,10 +130,14 @@ function getExportCss(direction: ExportDocumentDirection) {
       max-width: 760px;
       margin: 0 auto;
       background: #ffffff;
+      direction: ${direction};
+      text-align: ${textAlign};
     }
     .export-file {
       break-inside: auto;
       page-break-inside: auto;
+      direction: ${direction};
+      text-align: ${textAlign};
     }
     .export-file-page-break {
       break-before: page;

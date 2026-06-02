@@ -125,6 +125,12 @@ describe("exportMarkdown", () => {
     expect(html2PdfWorker.from).toHaveBeenCalledWith(
       expect.objectContaining({ dir: "rtl" }),
     );
+    expect((html2PdfWorker.from.mock.calls[0][0] as HTMLElement).style.direction).toBe(
+      "rtl",
+    );
+    expect((html2PdfWorker.from.mock.calls[0][0] as HTMLElement).style.textAlign).toBe(
+      "right",
+    );
   });
 
   it("renders multi-document PDF bytes from one paginated export element", async () => {
@@ -147,16 +153,19 @@ describe("exportMarkdown", () => {
 
   it("creates editable DOCX content with headings, lists, links, RTL text, and code", async () => {
     const bytes = await markdownToDocxBytes(
-      "# Title\n\nשלום עולם\n\n- one\n- two\n\nParagraph with **bold**, *italic*, `code`, and [link](https://example.com).\n\n```ts\nconst x = 1;\n```",
+      "# Title\n\nשלום עולם\n\n- one\n- two\n\n> Quote\n\nParagraph with **bold**, *italic*, `code`, and [link](https://example.com).\n\n```ts\nconst x = 1;\n```",
       "rtl",
     );
     const documentXml = await readDocxXml(bytes, "word/document.xml");
     const relsXml = await readDocxXml(bytes, "word/_rels/document.xml.rels");
     const numberingXml = await readDocxXml(bytes, "word/numbering.xml");
+    const settingsXml = await readDocxXml(bytes, "word/settings.xml");
+    const stylesXml = await readDocxXml(bytes, "word/styles.xml");
 
     expect(documentXml).toContain("Title");
     expect(documentXml).toContain("שלום עולם");
     expect(documentXml).toContain("Heading1");
+    expect(documentXml).toContain("QuoteRtl");
     expect(documentXml).toContain("CodeBlock");
     expect(documentXml).toContain("const");
     expect(documentXml).toContain(" x = ");
@@ -165,10 +174,32 @@ describe("exportMarkdown", () => {
     expect(documentXml).toContain("<w:b/>");
     expect(documentXml).toContain("<w:i/>");
     expect(documentXml).toContain("<w:bidi/>");
+    expect(documentXml).toContain("<w:sectPr");
+    expect(documentXml).toContain("<w:rtlGutter/>");
+    expect(documentXml).toContain('<w:jc w:val="right"/>');
+    expect(documentXml).not.toContain("<w:pPr><w:bidi/><w:pStyle");
+    expect(documentXml).toMatch(
+      /<w:pPr><w:pStyle w:val="Heading1"\/><w:bidi\/>[\s\S]*?<w:jc w:val="right"\/>[\s\S]*?<\/w:pPr>/,
+    );
+    expect(documentXml).toContain("<w:rtl/>");
+    expect(documentXml).toContain("<w:cs/>");
+    expect(documentXml).toContain('w:bidi="he-IL"');
     expect(documentXml).toContain("<w:hyperlink");
     expect(relsXml).toContain('Target="https://example.com"');
     expect(documentXml).toContain("<w:numPr>");
+    expect(numberingXml).toContain('w:val="right"');
+    expect(numberingXml).toContain("<w:ind");
+    expect(numberingXml).toContain('w:right="720"');
+    expect(numberingXml).toContain('w:start="720"');
+    expect(numberingXml).not.toContain('w:left="720"');
     expect(numberingXml).toContain('<w:numFmt w:val="bullet"');
+    expect(settingsXml).toContain('w:bidi="he-IL"');
+    expect(stylesXml).toContain('w:styleId="Normal"');
+    expect(stylesXml).toContain("<w:bidi/>");
+    expect(stylesXml).toContain('<w:jc w:val="right"/>');
+    expect(stylesXml).toContain("<w:rtl/>");
+    expect(stylesXml).toContain("<w:cs/>");
+    expect(stylesXml).toContain('w:bidi="he-IL"');
   });
 
   it("creates DOCX blockquotes, ordered lists, soft breaks, highlighted code, and empty documents", async () => {

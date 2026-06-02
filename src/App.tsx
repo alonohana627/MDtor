@@ -259,7 +259,10 @@ function App() {
 
   useEffect(() => {
     function handleKeyboardShortcut(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "M") {
+      const key = event.key.toLowerCase();
+      const isZenShortcut = key === "m" || event.code === "KeyM";
+
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && isZenShortcut) {
         event.preventDefault();
         setIsZenMode((currentValue) => !currentValue);
       }

@@ -7,7 +7,13 @@ import {
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  redo,
+  undo,
+} from "@codemirror/commands";
 import {
   autocompletion,
   closeBrackets,
@@ -67,6 +73,35 @@ const markdownEditorSetup = [
   crosshairCursor(),
   highlightActiveLine(),
   highlightSelectionMatches(),
+  EditorView.domEventHandlers({
+    keydown(event, view) {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey) {
+        return false;
+      }
+
+      if (event.code === "KeyZ") {
+        const handled = event.shiftKey ? redo(view) : undo(view);
+
+        if (handled) {
+          event.preventDefault();
+        }
+
+        return handled;
+      }
+
+      if (!event.shiftKey && event.code === "KeyY") {
+        const handled = redo(view);
+
+        if (handled) {
+          event.preventDefault();
+        }
+
+        return handled;
+      }
+
+      return false;
+    },
+  }),
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,

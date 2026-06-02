@@ -26,12 +26,17 @@ describe("useProjectKeyboardShortcuts", () => {
   it("dispatches project shortcuts for Ctrl key combinations", () => {
     const props = renderShortcuts();
 
-    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "p", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "ArrowRight", ctrlKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "s", code: "KeyS", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "o", code: "KeyO", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "n", code: "KeyN", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "p", code: "KeyP", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "Tab", code: "Tab", ctrlKey: true });
+    fireEvent.keyDown(window, {
+      key: "ArrowRight",
+      code: "ArrowRight",
+      ctrlKey: true,
+      altKey: true,
+    });
 
     expect(props.handleManualSave).toHaveBeenCalledTimes(1);
     expect(props.openProjectFolder).toHaveBeenCalledTimes(1);
@@ -40,12 +45,31 @@ describe("useProjectKeyboardShortcuts", () => {
     expect(props.switchToNextFile).toHaveBeenCalledTimes(2);
   });
 
+  it("dispatches project shortcuts by physical key on non-Latin layouts", () => {
+    const props = renderShortcuts();
+
+    fireEvent.keyDown(window, { key: "ד", code: "KeyS", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "ם", code: "KeyO", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "מ", code: "KeyN", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "פ", code: "KeyP", ctrlKey: true });
+
+    expect(props.handleManualSave).toHaveBeenCalledTimes(1);
+    expect(props.openProjectFolder).toHaveBeenCalledTimes(1);
+    expect(props.createNewFile).toHaveBeenCalledTimes(1);
+    expect(props.openQuickFileSwitcher).toHaveBeenCalledTimes(1);
+  });
+
   it("dispatches project shortcuts for Cmd key combinations", () => {
     const props = renderShortcuts();
 
-    fireEvent.keyDown(window, { key: "S", metaKey: true });
-    fireEvent.keyDown(window, { key: "Tab", metaKey: true });
-    fireEvent.keyDown(window, { key: "ArrowRight", metaKey: true, altKey: true });
+    fireEvent.keyDown(window, { key: "S", code: "KeyS", metaKey: true });
+    fireEvent.keyDown(window, { key: "Tab", code: "Tab", metaKey: true });
+    fireEvent.keyDown(window, {
+      key: "ArrowRight",
+      code: "ArrowRight",
+      metaKey: true,
+      altKey: true,
+    });
 
     expect(props.handleManualSave).toHaveBeenCalledTimes(1);
     expect(props.switchToNextFile).toHaveBeenCalledTimes(2);
@@ -58,11 +82,11 @@ describe("useProjectKeyboardShortcuts", () => {
       isProjectOpen: false,
     });
 
-    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "p", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "s", code: "KeyS", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "o", code: "KeyO", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "n", code: "KeyN", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "p", code: "KeyP", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "Tab", code: "Tab", ctrlKey: true });
 
     expect(props.handleManualSave).not.toHaveBeenCalled();
     expect(props.openProjectFolder).not.toHaveBeenCalled();
