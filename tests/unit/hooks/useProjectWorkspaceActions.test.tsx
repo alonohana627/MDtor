@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { isTauri } from "@tauri-apps/api/core";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteBrowserProjectFolder,
@@ -29,6 +30,10 @@ import {
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  revealItemInDir: vi.fn(),
 }));
 
 vi.mock("../../../src/services/browserProjectFiles", () => ({
@@ -65,6 +70,7 @@ vi.mock("../../../src/hooks/useProjectWorkspaceHelpers", async () => {
 });
 
 const isTauriMock = vi.mocked(isTauri);
+const revealItemInDirMock = vi.mocked(revealItemInDir);
 const isBrowserProjectFolderPickerSupportedMock = vi.mocked(
   isBrowserProjectFolderPickerSupported,
 );
@@ -128,6 +134,7 @@ describe("useProjectWorkspaceActions", () => {
     renameBrowserProjectFolderMock.mockResolvedValue(undefined);
     renameWorkspaceFileMock.mockResolvedValue([{ relativePath: "renamed.md" }]);
     renameProjectFolderMock.mockResolvedValue(undefined);
+    revealItemInDirMock.mockResolvedValue(undefined);
     scanProjectFolderMock.mockResolvedValue([{ relativePath: "chapter-02.md" }]);
     getNextProjectFilePathMock.mockReturnValue("chapter-02.md");
   });
@@ -188,6 +195,46 @@ describe("useProjectWorkspaceActions", () => {
     ]);
     expect(scanBrowserProjectFolderMock).toHaveBeenCalledWith(directoryHandle);
     expect(browserHandles.current.has("browser.md")).toBe(true);
+  });
+
+  it("refreshes browser projects and falls back when active files disappear", async () => {
+    const directoryHandle = { name: "Book" } as FileSystemDirectoryHandle;
+    const browserHandles = { current: new Map() };
+    scanBrowserProjectFolderMock.mockResolvedValueOnce({
+      fileHandles: new Map([["chapter-02.md", {} as never]]),
+      files: [{ relativePath: "chapter-02.md" }],
+    });
+    const params = createParams({
+      projectSource: { kind: "browser", id: "browser-book", name: "Book" },
+      browserDirectoryHandleRef: { current: directoryHandle },
+      browserFileHandlesRef: browserHandles,
+    });
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.refreshProject();
+    });
+
+    expect(scanBrowserProjectFolderMock).toHaveBeenCalledWith(directoryHandle);
+    expect(params.setProjectFiles).toHaveBeenCalledWith([
+      { relativePath: "chapter-02.md" },
+    ]);
+    expect(applyActiveFileFallbackMock).toHaveBeenCalledWith(
+      expect.objectContaining({ files: [{ relativePath: "chapter-02.md" }] }),
+    );
+    expect(browserHandles.current.has("chapter-02.md")).toBe(true);
+  });
+
+  it("does not refresh when no project is open", async () => {
+    const params = createParams({ projectSource: null });
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.refreshProject();
+    });
+
+    expect(scanProjectFolderMock).not.toHaveBeenCalled();
+    expect(params.setIsBusy).not.toHaveBeenCalled();
   });
 
   it("recovers from externally removed active files", async () => {
@@ -347,6 +394,52 @@ describe("useProjectWorkspaceActions", () => {
     });
 
     expect(params.setProjectError).toHaveBeenCalledWith("create failed");
+  });
+
+  it("creates folders by creating an initial placeholder Markdown file", async () => {
+    vi.spyOn(window, "prompt").mockReturnValueOnce("drafts");
+    const params = createParams();
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.createNewFolder();
+    });
+
+    expect(window.prompt).toHaveBeenCalledWith("New folder path", "new-folder");
+    expect(createWorkspaceFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({ relativePath: "drafts/untitled.md" }),
+    );
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("parent/child");
+    const nestedHook = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await nestedHook.result.current.createNewFolder("parent");
+    });
+
+    expect(window.prompt).toHaveBeenCalledWith("New folder path", "parent/new-folder");
+  });
+
+  it("handles create-folder guard rails", async () => {
+    const noProjectParams = createParams({ projectSource: null });
+    const noProjectHook = renderHook(() => useProjectWorkspaceActions(noProjectParams));
+
+    await act(async () => {
+      await noProjectHook.result.current.createNewFolder();
+    });
+
+    expect(noProjectParams.setProjectError).toHaveBeenCalledWith(
+      "Open a project folder before creating a folder.",
+    );
+
+    vi.spyOn(window, "prompt").mockReturnValueOnce("../bad");
+    const invalidHook = renderHook(() => useProjectWorkspaceActions(createParams()));
+
+    await act(async () => {
+      await invalidHook.result.current.createNewFolder();
+    });
+
+    expect(createWorkspaceFileMock).not.toHaveBeenCalled();
   });
 
   it("reorders files through the state updater", () => {
@@ -524,6 +617,74 @@ describe("useProjectWorkspaceActions", () => {
     );
   });
 
+  it("handles delete-folder guard rails and browser deletion", async () => {
+    const noProjectParams = createParams({ projectSource: null });
+    const noProjectHook = renderHook(() => useProjectWorkspaceActions(noProjectParams));
+
+    await act(async () => {
+      await noProjectHook.result.current.deleteFolder("notes");
+    });
+
+    expect(deleteProjectFolderMock).not.toHaveBeenCalled();
+
+    const invalidParams = createParams();
+    const invalidHook = renderHook(() => useProjectWorkspaceActions(invalidParams));
+
+    await act(async () => {
+      await invalidHook.result.current.deleteFolder("../bad");
+    });
+
+    expect(invalidParams.setProjectError).toHaveBeenCalledWith(
+      "Folder paths must stay inside the project folder.",
+    );
+
+    const emptyParams = createParams();
+    const emptyHook = renderHook(() => useProjectWorkspaceActions(emptyParams));
+
+    await act(async () => {
+      await emptyHook.result.current.deleteFolder("missing");
+    });
+
+    expect(emptyParams.setProjectError).toHaveBeenCalledWith(
+      "No Markdown files were found in that folder.",
+    );
+
+    vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+    const cancelParams = createParams({
+      projectFilesRef: { current: [{ relativePath: "notes/idea.md" }] },
+    });
+    const cancelHook = renderHook(() => useProjectWorkspaceActions(cancelParams));
+
+    await act(async () => {
+      await cancelHook.result.current.deleteFolder("notes");
+    });
+
+    expect(deleteProjectFolderMock).not.toHaveBeenCalled();
+
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    scanBrowserProjectFolderMock.mockResolvedValueOnce({
+      fileHandles: new Map(),
+      files: [],
+    });
+    const browserHandle = { name: "Book" } as FileSystemDirectoryHandle;
+    const browserParams = createParams({
+      projectSource: { kind: "browser", id: "browser-book", name: "Book" },
+      browserDirectoryHandleRef: { current: browserHandle },
+      projectFilesRef: { current: [{ relativePath: "notes/idea.md" }] },
+    });
+    const browserHook = renderHook(() => useProjectWorkspaceActions(browserParams));
+
+    await act(async () => {
+      await browserHook.result.current.deleteFolder("notes");
+    });
+
+    expect(deleteBrowserProjectFolderMock).toHaveBeenCalledWith(
+      browserHandle,
+      browserParams.browserFileHandlesRef.current,
+      "notes",
+    );
+  });
+
   it("renames files through a prompt and reports invalid names", async () => {
     vi.spyOn(window, "prompt").mockReturnValueOnce("../bad.md");
     const invalidParams = createParams();
@@ -585,5 +746,124 @@ describe("useProjectWorkspaceActions", () => {
       "chapters",
     );
     expect(params.setActiveFile).toHaveBeenCalledWith("chapters/idea.md");
+  });
+
+  it("handles rename-folder guard rails, browser rename, and fallback", async () => {
+    const noProjectHook = renderHook(() =>
+      useProjectWorkspaceActions(createParams({ projectSource: null })),
+    );
+
+    await act(async () => {
+      await noProjectHook.result.current.renameFolder("notes", "chapters");
+    });
+
+    expect(renameProjectFolderMock).not.toHaveBeenCalled();
+
+    const invalidOldParams = createParams();
+    const invalidOldHook = renderHook(() => useProjectWorkspaceActions(invalidOldParams));
+
+    await act(async () => {
+      await invalidOldHook.result.current.renameFolder("../bad", "chapters");
+    });
+
+    expect(invalidOldParams.setProjectError).toHaveBeenCalledWith(
+      "Folder paths must stay inside the project folder.",
+    );
+
+    const invalidNextParams = createParams({
+      projectFilesRef: { current: [{ relativePath: "notes/idea.md" }] },
+    });
+    const invalidNextHook = renderHook(() =>
+      useProjectWorkspaceActions(invalidNextParams),
+    );
+
+    await act(async () => {
+      await invalidNextHook.result.current.renameFolder("notes", "../bad");
+    });
+
+    expect(invalidNextParams.setProjectError).toHaveBeenCalledWith(
+      "Folder paths must stay inside the project folder.",
+    );
+
+    const intoSelfParams = createParams({
+      projectFilesRef: { current: [{ relativePath: "notes/idea.md" }] },
+    });
+    const intoSelfHook = renderHook(() => useProjectWorkspaceActions(intoSelfParams));
+
+    await act(async () => {
+      await intoSelfHook.result.current.renameFolder("notes", "notes/archive");
+    });
+
+    expect(intoSelfParams.setProjectError).toHaveBeenCalledWith(
+      "Folder cannot be renamed into itself.",
+    );
+
+    const missingParams = createParams();
+    const missingHook = renderHook(() => useProjectWorkspaceActions(missingParams));
+
+    await act(async () => {
+      await missingHook.result.current.renameFolder("missing", "chapters");
+    });
+
+    expect(missingParams.setProjectError).toHaveBeenCalledWith(
+      "No Markdown files were found in that folder.",
+    );
+
+    scanBrowserProjectFolderMock.mockResolvedValueOnce({
+      fileHandles: new Map(),
+      files: [{ relativePath: "chapter-01.md" }],
+    });
+    const browserHandle = { name: "Book" } as FileSystemDirectoryHandle;
+    const browserParams = createParams({
+      projectSource: { kind: "browser", id: "browser-book", name: "Book" },
+      activeFilePathRef: { current: "notes/idea.md" },
+      browserDirectoryHandleRef: { current: browserHandle },
+      projectFilesRef: { current: [{ relativePath: "notes/idea.md" }] },
+    });
+    const browserHook = renderHook(() => useProjectWorkspaceActions(browserParams));
+
+    await act(async () => {
+      await browserHook.result.current.renameFolder("notes", "chapters");
+    });
+
+    expect(renameBrowserProjectFolderMock).toHaveBeenCalledWith(
+      browserHandle,
+      browserParams.browserFileHandlesRef.current,
+      "notes",
+      "chapters",
+    );
+    expect(applyActiveFileFallbackMock).toHaveBeenCalled();
+  });
+
+  it("reveals files only for desktop projects", async () => {
+    const browserParams = createParams({
+      projectSource: { kind: "browser", id: "browser-book", name: "Book" },
+    });
+    const browserHook = renderHook(() => useProjectWorkspaceActions(browserParams));
+
+    await act(async () => {
+      await browserHook.result.current.revealFile("chapter-01.md");
+    });
+
+    expect(browserParams.setProjectError).toHaveBeenCalledWith(
+      "Reveal is only available in the desktop app.",
+    );
+
+    const params = createParams();
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.revealFile("chapter-01.md");
+    });
+
+    expect(revealItemInDirMock).toHaveBeenCalledWith("/notes/book/chapter-01.md");
+
+    revealItemInDirMock.mockRejectedValueOnce(new Error("reveal failed"));
+
+    await act(async () => {
+      await result.current.revealFile("chapter-01.md");
+    });
+
+    expect(params.setProjectError).toHaveBeenCalledWith("reveal failed");
   });
 });

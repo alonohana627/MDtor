@@ -8,7 +8,7 @@
 - Removed the remaining custom Markdown block parser; outline now derives structure from `markdown-it` tokens.
 - Rebuilt export around the preview renderer, adding A4 PDF export and editable DOCX export with shared styling, RTL/LTR direction support, links, lists, blockquotes, inline code, and code blocks.
 - Refactored export internals into focused HTML, PDF, DOCX, and shared style modules under `src/markdown/export/`.
-- Cleaned up repeated project workspace action busy/error handling.
+- Split project workspace actions into focused sync, project, file, folder, path, and busy/error runner modules.
 - Fixed RTL CodeMirror caret positioning by using the native caret and removed the unused `codemirror` meta package.
 - Adjusted preview code syntax highlighting colors for a clearer `highlight.js` palette.
 - Restored preview/editor correlation highlighting by adding source-line metadata to rendered Markdown and marking the preview block that contains the editor cursor line.

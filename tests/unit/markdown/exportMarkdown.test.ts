@@ -113,14 +113,59 @@ describe("exportMarkdown", () => {
     expect(numberingXml).toContain('<w:numFmt w:val="bullet"');
   });
 
-  it("keeps unsafe DOCX links inert", async () => {
-    const documentXml = await readDocxXml(
-      await markdownToDocxBytes("[Bad](javascript:alert)", "ltr"),
+  it("creates DOCX blockquotes, ordered lists, soft breaks, highlighted code, and empty documents", async () => {
+    const bytes = await markdownToDocxBytes(
+      [
+        "## Subtitle",
+        "",
+        "> Quoted text",
+        "",
+        "1. first",
+        "2. second",
+        "",
+        "Line one",
+        "Line two",
+        "",
+        "```html",
+        '<div class="box">Text</div>',
+        "```",
+      ].join("\n"),
+      "ltr",
+    );
+    const documentXml = await readDocxXml(bytes, "word/document.xml");
+    const numberingXml = await readDocxXml(bytes, "word/numbering.xml");
+
+    expect(documentXml).toContain("Heading2");
+    expect(documentXml).toContain("Quote");
+    expect(documentXml).toContain("Quoted text");
+    expect(documentXml).toContain("<w:br");
+    expect(documentXml).toContain("CodeBlock");
+    expect(numberingXml).toContain('<w:numFmt w:val="decimal"');
+
+    const emptyDocumentXml = await readDocxXml(
+      await markdownToDocxBytes("", "ltr"),
       "word/document.xml",
     );
 
-    expect(documentXml).toContain("Bad");
-    expect(documentXml).not.toContain("<w:hyperlink");
-    expect(documentXml).not.toContain("javascript:alert");
+    expect(emptyDocumentXml).toContain("<w:p>");
+  });
+
+  it("keeps unsafe DOCX links inert", async () => {
+    const unsafeDocumentXml = await readDocxXml(
+      await markdownToDocxBytes("[Bad](javascript:alert)\n\n[Relative](notes.md)", "ltr"),
+      "word/document.xml",
+    );
+    const mailtoBytes = await markdownToDocxBytes("[](mailto:test@example.com)", "ltr");
+    const mailtoDocumentXml = await readDocxXml(mailtoBytes, "word/document.xml");
+    const relsXml = await readDocxXml(mailtoBytes, "word/_rels/document.xml.rels");
+
+    expect(unsafeDocumentXml).toContain("Bad");
+    expect(unsafeDocumentXml).toContain("Relative");
+    expect(unsafeDocumentXml).not.toContain("<w:hyperlink");
+    expect(unsafeDocumentXml).not.toContain("javascript:alert");
+    expect(unsafeDocumentXml).not.toContain("notes.md");
+    expect(mailtoDocumentXml).toContain("<w:hyperlink");
+    expect(mailtoDocumentXml).toContain("mailto:test@example.com");
+    expect(relsXml).toContain('Target="mailto:test@example.com"');
   });
 });

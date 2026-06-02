@@ -70,7 +70,9 @@ hook:
   deleted outside the app, the workspace switches to the next available file or
   clears the editor when no files remain.
 - `useProjectKeyboardShortcuts`: handles `Ctrl` / `Cmd` project shortcuts.
-- `useProjectWorkspaceActions`: exposes UI actions as callbacks.
+- `useProjectWorkspaceActions`: composes focused workspace action modules for
+  sync/fallback work, project lifecycle actions, file actions, folder actions,
+  path helpers, and shared busy/error handling.
 - `workspaceCore`: shared load/save/read/persistence primitives.
 - `workspaceFileOperations`: create, delete, rename, switch, reorder, and
   active-file fallback behavior.

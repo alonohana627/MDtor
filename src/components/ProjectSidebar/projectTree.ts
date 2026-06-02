@@ -101,6 +101,7 @@ export function getParentFolderPath(node: VisibleProjectTreeNode) {
 
   if (node.kind === "file") {
     parts.pop();
+    return parts.join("/");
   }
 
   parts.pop();

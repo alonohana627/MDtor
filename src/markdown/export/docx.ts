@@ -8,12 +8,7 @@ import {
   Packer,
   Paragraph,
   ShadingType,
-  Table,
-  TableCell,
-  TableLayoutType,
-  TableRow,
   TextRun,
-  WidthType,
   type IParagraphOptions,
   type ParagraphChild,
 } from "docx";
@@ -252,7 +247,7 @@ function createDocxStyles() {
 
 function renderDocxBlocks(markdown: string, context: DocxRenderContext) {
   const tokens = getMarkdownTokens(markdown);
-  const children: (Paragraph | Table)[] = [];
+  const children: Paragraph[] = [];
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
@@ -300,12 +295,6 @@ function renderDocxBlocks(markdown: string, context: DocxRenderContext) {
     if (token.type === "fence" || token.type === "code_block") {
       children.push(...renderDocxCodeBlock(token.content, token.info));
       continue;
-    }
-
-    if (token.type === "table_open") {
-      const result = renderDocxTable(tokens, index, context);
-      children.push(result.table);
-      index = result.nextIndex;
     }
   }
 
@@ -600,61 +589,6 @@ function getCodeTokenColor(element: Element) {
   }
 
   return null;
-}
-
-function renderDocxTable(
-  tokens: Token[],
-  startIndex: number,
-  context: DocxRenderContext,
-) {
-  const closeIndex = findMatchingBlockClose(tokens, startIndex, "table_close");
-  const rows: TableRow[] = [];
-  let currentCells: TableCell[] = [];
-
-  for (let index = startIndex + 1; index < closeIndex; index += 1) {
-    const token = tokens[index];
-
-    if (token.type === "tr_open") {
-      currentCells = [];
-      continue;
-    }
-
-    if (token.type === "tr_close") {
-      rows.push(new TableRow({ children: currentCells }));
-      continue;
-    }
-
-    if (token.type === "th_open" || token.type === "td_open") {
-      const inlineToken = findFirstInlineToken(tokens, index + 1, closeIndex);
-      const isHeader = token.type === "th_open";
-
-      currentCells.push(
-        new TableCell({
-          shading: isHeader
-            ? {
-                type: ShadingType.CLEAR,
-                fill: trimHash(exportStyleContract.colors.quoteBackground),
-              }
-            : undefined,
-          children: [
-            createDocxParagraph(inlineToken, context, {
-              bidirectional: context.direction === "rtl",
-              alignment: getDocxAlignment(context.direction),
-            }),
-          ],
-        }),
-      );
-    }
-  }
-
-  return {
-    table: new Table({
-      rows,
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      layout: TableLayoutType.AUTOFIT,
-    }),
-    nextIndex: closeIndex,
-  };
 }
 
 function getHeadingLevel(token: Token) {

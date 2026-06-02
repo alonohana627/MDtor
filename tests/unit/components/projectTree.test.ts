@@ -3,6 +3,7 @@ import {
   buildProjectTree,
   flattenProjectTree,
   getFolderAncestors,
+  getParentFolderPath,
 } from "../../../src/components/ProjectSidebar/projectTree";
 
 describe("projectTree", () => {
@@ -52,5 +53,22 @@ describe("projectTree", () => {
       "docs",
       "docs/reference",
     ]);
+  });
+
+  it("ignores empty paths and returns parent folder paths", () => {
+    const tree = buildProjectTree([
+      { relativePath: "" },
+      { relativePath: "docs/reference/api.md" },
+    ]);
+    const visibleNodes = flattenProjectTree(tree, new Set(["docs", "docs/reference"]));
+
+    expect(visibleNodes.map((node) => node.relativePath)).toEqual([
+      "docs",
+      "docs/reference",
+      "docs/reference/api.md",
+    ]);
+    expect(getParentFolderPath(visibleNodes[0])).toBe("");
+    expect(getParentFolderPath(visibleNodes[1])).toBe("docs");
+    expect(getParentFolderPath(visibleNodes[2])).toBe("docs/reference");
   });
 });

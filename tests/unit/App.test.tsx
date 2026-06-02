@@ -329,6 +329,21 @@ describe("App", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("uses valid persisted layout sizes", () => {
+    window.localStorage.setItem("mdtor:editor-preview-split", "64");
+    window.localStorage.setItem("mdtor:project-sidebar-width", "300");
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".writer-workspace")).toHaveStyle({
+      "--editor-split": "64%",
+    });
+    expect(container.querySelector(".app-shell")).toHaveStyle({
+      "--project-sidebar-width": "300px",
+    });
+  });
+
   it("does not force scroll coupling when the target cannot scroll", () => {
     useProjectWorkspaceMock.mockReturnValue(createWorkspace());
 
@@ -358,6 +373,52 @@ describe("App", () => {
     expect(preview.scrollTop).toBe(0);
   });
 
+  it("ignores scroll sync when there is no target or no scroll delta", () => {
+    const workspace = createWorkspace();
+    useProjectWorkspaceMock.mockReturnValue(workspace);
+
+    render(<App />);
+
+    const editor = document.querySelector(".cm-scroller") as HTMLElement;
+    const preview = document.querySelector(".preview") as HTMLElement;
+    Object.defineProperties(editor, {
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 1500 },
+      scrollTop: { configurable: true, writable: true, value: 100 },
+    });
+    Object.defineProperties(preview, {
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 1500 },
+      scrollTop: { configurable: true, writable: true, value: 100 },
+    });
+
+    workspace.editorRef.current = null;
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    );
+    preview.scrollTop = 150;
+    fireEvent.scroll(preview);
+
+    expect(editor.scrollTop).toBe(100);
+
+    workspace.editorRef.current = editor as never;
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Toggle editor and preview scroll sync",
+      }),
+    );
+    fireEvent.scroll(editor);
+
+    expect(preview.scrollTop).toBe(150);
+  });
+
   it("shows export errors from failed exports", async () => {
     exportMarkdownDocumentMock.mockRejectedValueOnce("failed export");
     useProjectWorkspaceMock.mockReturnValue(createWorkspace());
@@ -367,6 +428,62 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
 
     expect(await screen.findByText("failed export")).toBeInTheDocument();
+  });
+
+  it("shows Error messages from failed exports", async () => {
+    exportMarkdownDocumentMock.mockRejectedValueOnce(new Error("pdf failed"));
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
+
+    expect(await screen.findByText("pdf failed")).toBeInTheDocument();
+  });
+
+  it("persists project sidebar resize bounds", () => {
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    render(<App />);
+
+    const resizer = screen.getByRole("button", {
+      name: "Resize project sidebar",
+    });
+    Object.defineProperty(resizer, "setPointerCapture", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    fireEvent.pointerDown(resizer, { pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 420 });
+    fireEvent.pointerUp(window);
+
+    expect(window.localStorage.getItem("mdtor:project-sidebar-width")).toBe("360");
+
+    fireEvent.pointerDown(resizer, { pointerId: 2 });
+    fireEvent.pointerMove(window, { clientX: 120 });
+    fireEvent.pointerUp(window);
+
+    expect(window.localStorage.getItem("mdtor:project-sidebar-width")).toBe("180");
+  });
+
+  it("ignores split resizing when the divider has no workspace parent", () => {
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    render(<App />);
+
+    const divider = screen.getByRole("button", {
+      name: "Resize editor and preview panes",
+    });
+    const setPointerCapture = vi.fn();
+    Object.defineProperties(divider, {
+      parentElement: { configurable: true, value: null },
+      setPointerCapture: { configurable: true, value: setPointerCapture },
+    });
+
+    fireEvent.pointerDown(divider, { pointerId: 1 });
+
+    expect(setPointerCapture).not.toHaveBeenCalled();
   });
 
   it("jumps from outline items to the selected editor line", () => {
@@ -403,5 +520,31 @@ describe("App", () => {
       block: "start",
       behavior: "auto",
     });
+  });
+
+  it("updates the active line from the outline even when the editor handle is missing", () => {
+    const setCurrentLine = vi.fn();
+    const workspace = createWorkspace({
+      markdown: "# One\n\n## Two",
+      setCurrentLine,
+    });
+    useProjectWorkspaceMock.mockReturnValue(workspace);
+
+    render(<App />);
+
+    workspace.editorRef.current = null;
+    fireEvent.click(screen.getByRole("button", { name: "Two" }));
+
+    expect(setCurrentLine).toHaveBeenCalledWith(3);
+  });
+
+  it("supports the Meta+Shift+M Zen shortcut", () => {
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    const { container } = render(<App />);
+
+    fireEvent.keyDown(window, { key: "M", metaKey: true, shiftKey: true });
+
+    expect(container.querySelector(".app-shell")).toHaveAttribute("data-zen", "true");
   });
 });
