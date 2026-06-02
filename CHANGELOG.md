@@ -13,6 +13,8 @@
 - Fixed RTL CodeMirror caret positioning by using the native caret and removed the unused `codemirror` meta package.
 - Adjusted preview code syntax highlighting colors for a clearer `highlight.js` palette.
 - Restored preview/editor correlation highlighting by adding source-line metadata to rendered Markdown and marking the preview block that contains the editor cursor line.
+- Flipped the editor and preview pane positions when switching between LTR and RTL document direction.
+- Moved export, stats, Typewriter, and Zen actions into floating bottom control bars so they no longer cover editor direction controls.
 - Added a production sidebar tree with nested folders, persisted expansion, keyboard navigation, resizing, refresh/reveal/create actions, and right-click rename/delete for files and folders.
 
 ## 0.2.2

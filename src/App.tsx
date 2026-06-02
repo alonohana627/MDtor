@@ -297,26 +297,6 @@ function App() {
           <div className="writer-stat" aria-label="Document statistics">
             {stats.words} words | {stats.characters} chars | {stats.readingMinutes} min
           </div>
-          <button type="button" onClick={() => void handleExport("pdf")}>
-            Export PDF
-          </button>
-          <button type="button" onClick={() => void handleExport("docx")}>
-            Export DOCX
-          </button>
-          <button
-            type="button"
-            disabled={!canExportProject}
-            onClick={() => void handleProjectExport("pdf")}
-          >
-            Export Project PDF
-          </button>
-          <button
-            type="button"
-            disabled={!canExportProject}
-            onClick={() => void handleProjectExport("docx")}
-          >
-            Export Project DOCX
-          </button>
           <button
             type="button"
             aria-pressed={isTypewriterMode}
@@ -337,6 +317,30 @@ function App() {
           Exit Zen
         </button>
       )}
+      {!isZenMode ? (
+        <div className="export-controls" aria-label="Export controls">
+          <button type="button" onClick={() => void handleExport("pdf")}>
+            Export PDF
+          </button>
+          <button type="button" onClick={() => void handleExport("docx")}>
+            Export DOCX
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("pdf")}
+          >
+            Export Project PDF
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("docx")}
+          >
+            Export Project DOCX
+          </button>
+        </div>
+      ) : null}
       <ProjectSidebar
         files={workspace.projectFiles}
         activeFilePath={workspace.activeFilePath}
@@ -361,6 +365,7 @@ function App() {
       />
       <div
         className="writer-workspace"
+        data-direction={direction}
         style={{ "--editor-split": `${splitPercent}%` } as CSSProperties}
       >
         <MarkdownEditor

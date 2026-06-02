@@ -103,6 +103,23 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("flips editor and preview pane order with document direction", () => {
+    useProjectWorkspaceMock.mockReturnValue(createWorkspace());
+
+    const { container } = render(<App />);
+    const workspace = container.querySelector(".writer-workspace");
+
+    expect(workspace).toHaveAttribute("data-direction", "ltr");
+
+    fireEvent.click(screen.getByRole("button", { name: "RTL" }));
+
+    expect(workspace).toHaveAttribute("data-direction", "rtl");
+
+    fireEvent.click(screen.getByRole("button", { name: "LTR" }));
+
+    expect(workspace).toHaveAttribute("data-direction", "ltr");
+  });
+
   it("shows live writer stats and exports the active document", async () => {
     const loadProjectDocuments = vi.fn().mockResolvedValue([
       { relativePath: "a.md", markdown: "# A" },
@@ -124,6 +141,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Document statistics")).toHaveTextContent(
       "4 words | 25 chars | 1 min",
     );
+    expect(screen.getByLabelText("Export controls")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     fireEvent.click(screen.getByRole("button", { name: "Export DOCX" }));
@@ -180,6 +198,7 @@ describe("App", () => {
 
     expect(container.querySelector(".app-shell")).toHaveAttribute("data-zen", "true");
     expect(screen.queryByLabelText("Writer tools")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Export controls")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit Zen" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "M", ctrlKey: true, shiftKey: true });

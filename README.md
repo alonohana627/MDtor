@@ -16,7 +16,8 @@ for recent projects and active files.
   cursor movement, wrapping, and scrolling handled by the editor library.
 - Current editor line indicator.
 - Independent editor and preview scrolling with an optional sync toggle.
-- LTR and RTL document direction controls.
+- LTR and RTL document direction controls that also flip editor/preview pane
+  positions.
 - Light and dark mode toggle.
 - Responsive large-document editing using CodeMirror and worker-assisted,
   debounced preview rendering.
@@ -26,8 +27,8 @@ for recent projects and active files.
 - Adjustable editor/preview split layout.
 - Zen Mode and Typewriter Mode for focused writing.
 - Preview-faithful PDF and editable DOCX export for the active file or the
-  whole project, with project files exported alphabetically and starting on
-  fresh pages.
+  whole project, shown in floating bottom controls, with project files
+  exported alphabetically and starting on fresh pages.
 - Folder-based Markdown projects with recursive file discovery.
 - Native folder picking in the Tauri desktop app.
 - Browser folder opening and saving in browsers that support the File System
