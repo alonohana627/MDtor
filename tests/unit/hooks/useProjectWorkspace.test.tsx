@@ -7,6 +7,7 @@ import { useProjectKeyboardShortcuts } from "../../../src/hooks/useProjectKeyboa
 import {
   isBrowserProjectFolderPickerSupported,
   openBrowserProjectFolder,
+  readBrowserProjectAsset,
   readBrowserProjectFile,
   saveBrowserProjectFile,
   scanBrowserProjectFolder,
@@ -14,6 +15,7 @@ import {
 import {
   createProjectFile,
   deleteProjectFile,
+  readProjectAsset,
   readProjectFile,
   saveProjectFile,
   scanProjectFolder,
@@ -43,9 +45,12 @@ vi.mock("../../../src/hooks/useProjectPolling", () => ({
 vi.mock("../../../src/services/browserProjectFiles", () => ({
   isBrowserProjectFolderPickerSupported: vi.fn(() => false),
   createBrowserProjectFile: vi.fn(),
+  deleteBrowserProjectFolder: vi.fn(),
   deleteBrowserProjectFile: vi.fn(),
   openBrowserProjectFolder: vi.fn(),
+  readBrowserProjectAsset: vi.fn(),
   readBrowserProjectFile: vi.fn(),
+  renameBrowserProjectFolder: vi.fn(),
   saveBrowserProjectFile: vi.fn(),
   scanBrowserProjectFolder: vi.fn(),
 }));
@@ -53,7 +58,10 @@ vi.mock("../../../src/services/browserProjectFiles", () => ({
 vi.mock("../../../src/services/projectFiles", () => ({
   createProjectFile: vi.fn(),
   deleteProjectFile: vi.fn(),
+  deleteProjectFolder: vi.fn(),
+  readProjectAsset: vi.fn(),
   readProjectFile: vi.fn(),
+  renameProjectFolder: vi.fn(),
   saveProjectFile: vi.fn(),
   scanProjectFolder: vi.fn(),
 }));
@@ -70,9 +78,11 @@ const isBrowserProjectFolderPickerSupportedMock = vi.mocked(
   isBrowserProjectFolderPickerSupported,
 );
 const openBrowserProjectFolderMock = vi.mocked(openBrowserProjectFolder);
+const readBrowserProjectAssetMock = vi.mocked(readBrowserProjectAsset);
 const readBrowserProjectFileMock = vi.mocked(readBrowserProjectFile);
 const saveBrowserProjectFileMock = vi.mocked(saveBrowserProjectFile);
 const scanBrowserProjectFolderMock = vi.mocked(scanBrowserProjectFolder);
+const readProjectAssetMock = vi.mocked(readProjectAsset);
 
 const projectFiles = [
   { relativePath: "chapter-01.md" },
@@ -116,6 +126,7 @@ async function renderRestoredWorkspace() {
 describe("useProjectWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     window.localStorage.clear();
     isTauriMock.mockReturnValue(true);
     isBrowserProjectFolderPickerSupportedMock.mockReturnValue(false);
@@ -287,6 +298,32 @@ describe("useProjectWorkspace", () => {
     expect(result.current.isDirty).toBe(false);
   });
 
+  it("loads project documents alphabetically and uses unsaved active editor text", async () => {
+    mockTauriProject([
+      { relativePath: "b.md" },
+      { relativePath: "a.md" },
+      { relativePath: "chapters/c.md" },
+    ]);
+    saveLastTauriProjectPath("/notes/book");
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await waitFor(() => {
+      expect(result.current.activeFilePath).toBe("b.md");
+    });
+
+    act(() => {
+      result.current.setMarkdown("# Unsaved B");
+    });
+
+    await expect(result.current.loadProjectDocuments()).resolves.toEqual([
+      { relativePath: "a.md", markdown: "content:a.md" },
+      { relativePath: "b.md", markdown: "# Unsaved B" },
+      { relativePath: "chapters/c.md", markdown: "content:chapters/c.md" },
+    ]);
+    expect(readProjectFileMock).toHaveBeenCalledWith("/notes/book", "a.md");
+    expect(readProjectFileMock).toHaveBeenCalledWith("/notes/book", "chapters/c.md");
+  });
+
   it("ignores manual saves when no project is open", async () => {
     const { result } = renderHook(() => useProjectWorkspace());
 
@@ -296,6 +333,14 @@ describe("useProjectWorkspace", () => {
 
     expect(saveProjectFileMock).not.toHaveBeenCalled();
     expect(saveBrowserProjectFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects loading project documents when no project is open", async () => {
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await expect(result.current.loadProjectDocuments()).rejects.toThrow(
+      "Open a project folder before exporting project files.",
+    );
   });
 
   it("reorders project files and ignores invalid moves", async () => {
@@ -546,6 +591,99 @@ describe("useProjectWorkspace", () => {
     });
     expect(result.current.activeFilePath).toBe("browser.md");
     expect(result.current.markdown).toBe("# Browser");
+  });
+
+  it("loads Tauri project images relative to the active file", async () => {
+    readProjectAssetMock.mockResolvedValue({
+      bytes: [137, 80, 78, 71],
+      mimeType: "image/png",
+    });
+    const { result } = await renderRestoredWorkspace();
+
+    const blob = await result.current.loadProjectImage("../assets/cover.png");
+
+    expect(readProjectAssetMock).toHaveBeenCalledWith(
+      "/notes/book",
+      "chapter-01.md",
+      "../assets/cover.png",
+    );
+    expect(blob.type).toBe("image/png");
+    await expect(blob.arrayBuffer()).resolves.toEqual(
+      new Uint8Array([137, 80, 78, 71]).buffer,
+    );
+  });
+
+  it("loads browser project images when a directory handle is open", async () => {
+    isTauriMock.mockReturnValue(false);
+    isBrowserProjectFolderPickerSupportedMock.mockReturnValue(true);
+    const directoryHandle = { name: "Browser Book" } as FileSystemDirectoryHandle;
+    const image = new File(["image"], "cover.png", { type: "image/png" });
+    openBrowserProjectFolderMock.mockResolvedValue({
+      id: "browser-book-1",
+      name: "Browser Book",
+      files: [{ relativePath: "browser.md" }],
+      fileHandles: new Map(),
+      directoryHandle,
+    });
+    readBrowserProjectFileMock.mockResolvedValue("# Browser");
+    readBrowserProjectAssetMock.mockResolvedValue(image);
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await act(async () => {
+      await result.current.openProjectFolder();
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeFilePath).toBe("browser.md");
+    });
+
+    await expect(result.current.loadProjectImage("cover.png")).resolves.toBe(image);
+    expect(readBrowserProjectAssetMock).toHaveBeenCalledWith(
+      directoryHandle,
+      "browser.md",
+      "cover.png",
+    );
+  });
+
+  it("rejects image loading when no active project file is open", async () => {
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await expect(result.current.loadProjectImage("cover.png")).rejects.toThrow(
+      "Open a project file before previewing local images.",
+    );
+    expect(readProjectAssetMock).not.toHaveBeenCalled();
+    expect(readBrowserProjectAssetMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects browser image loading when the directory handle is unavailable", async () => {
+    isTauriMock.mockReturnValue(false);
+    isBrowserProjectFolderPickerSupportedMock.mockReturnValue(true);
+    openBrowserProjectFolderMock.mockResolvedValue({
+      id: "browser-book-1",
+      name: "Browser Book",
+      files: [{ relativePath: "browser.md" }],
+      fileHandles: new Map(),
+      directoryHandle: null as never,
+    });
+    readBrowserProjectFileMock.mockResolvedValue("# Browser");
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await act(async () => {
+      await result.current.openProjectFolder();
+    });
+
+    await waitFor(() => {
+      expect(result.current.projectSource).toEqual({
+        kind: "browser",
+        id: "browser-book-1",
+        name: "Browser Book",
+      });
+    });
+
+    await expect(result.current.loadProjectImage("cover.png")).rejects.toThrow(
+      "Open a browser project folder before previewing local images.",
+    );
+    expect(readBrowserProjectAssetMock).not.toHaveBeenCalled();
   });
 
   it("skips state updates when restore is cancelled mid-flight", async () => {

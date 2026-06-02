@@ -5,9 +5,18 @@
 - Improved large-document editing responsiveness by moving active editing to CodeMirror, deferring preview/outline/stat rendering away from the keystroke path, and adding large-document performance coverage.
 - Improved large-document selection responsiveness by letting CodeMirror own cursor and selection behavior and avoiding preview/outline work on the immediate input path.
 - Replaced the active editor with CodeMirror 6 and the active preview renderer with worker-assisted, sanitized `markdown-it` HTML plus `highlight.js` core code highlighting, task lists, and footnotes.
-- Removed the remaining custom Markdown block parser and export inline parser; outline and export now derive structure from `markdown-it` tokens.
+- Removed the remaining custom Markdown block parser; outline now derives structure from `markdown-it` tokens.
+- Rebuilt export around the preview renderer, adding A4 PDF export and editable DOCX export with shared styling, RTL/LTR direction support, links, lists, blockquotes, inline code, and code blocks.
+- Refactored export internals into focused HTML, PDF, DOCX, and shared style modules under `src/markdown/export/`.
+- Added project-wide multi-file export with alphabetical file ordering and real DOCX/PDF page breaks between files.
+- Split project workspace actions into focused sync, project, file, folder, path, and busy/error runner modules.
+- Fixed RTL CodeMirror caret positioning by using the native caret and removed the unused `codemirror` meta package.
 - Adjusted preview code syntax highlighting colors for a clearer `highlight.js` palette.
 - Restored preview/editor correlation highlighting by adding source-line metadata to rendered Markdown and marking the preview block that contains the editor cursor line.
+- Flipped the editor and preview pane positions when switching between LTR and RTL document direction.
+- Moved export, stats, Typewriter, and Zen actions into floating bottom control bars so they no longer cover editor direction controls.
+- Added a production sidebar tree with nested folders, persisted expansion, keyboard navigation, resizing, refresh/reveal/create actions, and right-click rename/delete for files and folders.
+- Aligned package, Cargo, Tauri, lockfile, and changelog versions at `0.3.0`.
 
 ## 0.2.2
 

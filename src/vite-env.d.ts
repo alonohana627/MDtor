@@ -1,15 +1,15 @@
 /// <reference types="vite/client" />
 
 declare module "markdown-it-footnote" {
-  import MarkdownIt = require("markdown-it");
+  import type { PluginSimple } from "markdown-it";
 
-  const markdownItFootnote: MarkdownIt.PluginSimple;
+  const markdownItFootnote: PluginSimple;
 
   export default markdownItFootnote;
 }
 
 declare module "markdown-it-task-lists" {
-  import MarkdownIt = require("markdown-it");
+  import type { PluginWithOptions } from "markdown-it";
 
   type TaskListOptions = {
     enabled?: boolean;
@@ -17,7 +17,7 @@ declare module "markdown-it-task-lists" {
     labelAfter?: boolean;
   };
 
-  const markdownItTaskLists: MarkdownIt.PluginWithOptions<TaskListOptions>;
+  const markdownItTaskLists: PluginWithOptions<TaskListOptions>;
 
   export default markdownItTaskLists;
 }

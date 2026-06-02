@@ -3,7 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   createProjectFile,
   deleteProjectFile,
+  deleteProjectFolder,
   readProjectFile,
+  renameProjectFolder,
   saveProjectFile,
   scanProjectFolder,
 } from "../../../src/services/projectFiles";
@@ -67,6 +69,23 @@ describe("projectFiles", () => {
     expect(invokeMock).toHaveBeenCalledWith("delete_project_file", {
       projectPath: "/notes/book",
       relativePath: "old.md",
+    });
+  });
+
+  it("deletes and renames project folders through the Tauri command boundary", async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await deleteProjectFolder("/notes/book", "drafts");
+    await renameProjectFolder("/notes/book", "drafts", "chapters");
+
+    expect(invokeMock).toHaveBeenCalledWith("delete_project_folder", {
+      projectPath: "/notes/book",
+      relativePath: "drafts",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("rename_project_folder", {
+      projectPath: "/notes/book",
+      oldRelativePath: "drafts",
+      newRelativePath: "chapters",
     });
   });
 });

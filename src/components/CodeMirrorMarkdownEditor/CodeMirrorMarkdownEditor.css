@@ -23,11 +23,20 @@
   caret-color: var(--editor-text);
 }
 
-.codemirror-markdown-editor-ltr .cm-content {
+.codemirror-markdown-editor-host .cm-line {
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+.codemirror-markdown-editor-ltr .cm-content,
+.codemirror-markdown-editor-ltr .cm-line {
+  direction: ltr;
   text-align: left;
 }
 
-.codemirror-markdown-editor-rtl .cm-content {
+.codemirror-markdown-editor-rtl .cm-content,
+.codemirror-markdown-editor-rtl .cm-line {
+  direction: rtl;
   text-align: right;
 }
 

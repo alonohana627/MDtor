@@ -5,8 +5,8 @@ editing. It opens a project folder, discovers Markdown files recursively, and
 lets you write, preview, create, reorder, and delete `.md` / `.markdown` files.
 
 The app is currently focused on long-form writing workflows: fast file switching,
-outline navigation, export, RTL/LTR direction controls, and persistence for
-recent projects and active files.
+outline navigation, PDF/DOCX export, RTL/LTR direction controls, and persistence
+for recent projects and active files.
 
 ## Features
 
@@ -16,7 +16,8 @@ recent projects and active files.
   cursor movement, wrapping, and scrolling handled by the editor library.
 - Current editor line indicator.
 - Independent editor and preview scrolling with an optional sync toggle.
-- LTR and RTL document direction controls.
+- LTR and RTL document direction controls that also flip editor/preview pane
+  positions.
 - Light and dark mode toggle.
 - Responsive large-document editing using CodeMirror and worker-assisted,
   debounced preview rendering.
@@ -25,7 +26,9 @@ recent projects and active files.
 - Live outline sidebar generated from document headings.
 - Adjustable editor/preview split layout.
 - Zen Mode and Typewriter Mode for focused writing.
-- PDF, DOCX, and standalone HTML export.
+- Preview-faithful PDF and editable DOCX export for the active file or the
+  whole project, shown in floating bottom controls, with project files
+  exported alphabetically and starting on fresh pages.
 - Folder-based Markdown projects with recursive file discovery.
 - Native folder picking in the Tauri desktop app.
 - Browser folder opening and saving in browsers that support the File System

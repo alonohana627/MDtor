@@ -53,7 +53,6 @@ function renderProjectSidebar(files: ProjectFile[]) {
         onOpenRecentProject={vi.fn()}
         onCreateFile={vi.fn()}
         onSelectFile={vi.fn()}
-        onMoveFile={vi.fn()}
         onDeleteFile={vi.fn()}
         onRenameFile={vi.fn()}
       />,

@@ -17,9 +17,7 @@ const emptyRectList = () =>
   ({
     length: 0,
     item: () => null,
-    [Symbol.iterator]: function* () {
-      return;
-    },
+    [Symbol.iterator]: () => [][Symbol.iterator](),
   }) as DOMRectList;
 
 if (!window.matchMedia) {

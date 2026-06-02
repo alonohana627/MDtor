@@ -17,18 +17,32 @@ import { getDocumentStats } from "./markdown/documentStats";
 import { getLineStartOffset } from "./markdown/lineOffsets";
 import { getMarkdownOutline } from "./markdown/outline";
 import { getProjectLabel } from "./project/projectUtils";
+import { type ProjectSource } from "./project/projectTypes";
 import { exportMarkdownDocument, type ExportFormat } from "./services/documentExport";
 import { type DocumentDirection, type Theme } from "./types";
 import "./App.css";
 
 const SPLIT_STORAGE_KEY = "mdtor:editor-preview-split";
 const SCROLL_SYNC_STORAGE_KEY = "mdtor:editor-preview-scroll-sync";
+const PROJECT_SIDEBAR_WIDTH_STORAGE_KEY = "mdtor:project-sidebar-width";
 
 type ScrollSyncTarget = {
   clientHeight: number;
   scrollHeight: number;
   scrollTop: number;
 };
+
+function getProjectExportFileName(projectSource: ProjectSource | null) {
+  if (!projectSource) {
+    return "project";
+  }
+
+  if (projectSource.kind === "browser") {
+    return projectSource.name;
+  }
+
+  return projectSource.path.split(/[\\/]/).filter(Boolean).pop() ?? "project";
+}
 
 function App() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -39,6 +53,15 @@ function App() {
     return Number.isFinite(storedValue) && storedValue >= 25 && storedValue <= 75
       ? storedValue
       : 50;
+  });
+  const [projectSidebarWidth, setProjectSidebarWidth] = useState(() => {
+    const storedValue = Number(
+      window.localStorage.getItem(PROJECT_SIDEBAR_WIDTH_STORAGE_KEY),
+    );
+
+    return Number.isFinite(storedValue) && storedValue >= 180 && storedValue <= 360
+      ? storedValue
+      : 220;
   });
   const [isZenMode, setIsZenMode] = useState(false);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
@@ -55,6 +78,8 @@ function App() {
   const deferredMarkdown = useDeferredValue(workspace.markdown);
   const outline = useMemo(() => getMarkdownOutline(deferredMarkdown), [deferredMarkdown]);
   const stats = useMemo(() => getDocumentStats(deferredMarkdown), [deferredMarkdown]);
+  const canExportProject =
+    Boolean(workspace.projectSource) && workspace.projectFiles.length > 0;
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
@@ -179,6 +204,25 @@ function App() {
     window.addEventListener("pointerup", stopResize);
   }
 
+  function startProjectSidebarResize(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const nextWidth = Math.min(360, Math.max(180, moveEvent.clientX));
+
+      setProjectSidebarWidth(nextWidth);
+      window.localStorage.setItem(PROJECT_SIDEBAR_WIDTH_STORAGE_KEY, String(nextWidth));
+    }
+
+    function stopResize() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+  }
+
   async function handleExport(format: ExportFormat) {
     setExportError(null);
 
@@ -186,6 +230,26 @@ function App() {
       await exportMarkdownDocument({
         markdown: workspace.markdown,
         activeFilePath: workspace.activeFilePath,
+        direction,
+        format,
+      });
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleProjectExport(format: ExportFormat) {
+    setExportError(null);
+
+    try {
+      const documents = await workspace.loadProjectDocuments();
+
+      await exportMarkdownDocument({
+        markdown: workspace.markdown,
+        activeFilePath: workspace.activeFilePath,
+        defaultFileName: getProjectExportFileName(workspace.projectSource),
+        direction,
+        documents,
         format,
       });
     } catch (error) {
@@ -213,6 +277,7 @@ function App() {
       className="app-shell"
       data-theme={theme}
       data-zen={isZenMode ? "true" : "false"}
+      style={{ "--project-sidebar-width": `${projectSidebarWidth}px` } as CSSProperties}
     >
       {!isZenMode ? (
         <div className="top-controls" aria-label="Display controls">
@@ -233,15 +298,6 @@ function App() {
           <div className="writer-stat" aria-label="Document statistics">
             {stats.words} words | {stats.characters} chars | {stats.readingMinutes} min
           </div>
-          <button type="button" onClick={() => void handleExport("html")}>
-            HTML
-          </button>
-          <button type="button" onClick={() => void handleExport("pdf")}>
-            PDF
-          </button>
-          <button type="button" onClick={() => void handleExport("docx")}>
-            DOCX
-          </button>
           <button
             type="button"
             aria-pressed={isTypewriterMode}
@@ -262,6 +318,30 @@ function App() {
           Exit Zen
         </button>
       )}
+      {!isZenMode ? (
+        <div className="export-controls" aria-label="Export controls">
+          <button type="button" onClick={() => void handleExport("pdf")}>
+            Export PDF
+          </button>
+          <button type="button" onClick={() => void handleExport("docx")}>
+            Export DOCX
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("pdf")}
+          >
+            Export Project PDF
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("docx")}
+          >
+            Export Project DOCX
+          </button>
+        </div>
+      ) : null}
       <ProjectSidebar
         files={workspace.projectFiles}
         activeFilePath={workspace.activeFilePath}
@@ -270,16 +350,23 @@ function App() {
         recentProjects={workspace.recentProjects}
         isBusy={workspace.isBusy}
         error={workspace.projectError}
+        canRevealFiles={workspace.projectSource?.kind === "tauri"}
         onOpenProject={workspace.openProjectFolder}
         onOpenRecentProject={workspace.openRecentProject}
         onCreateFile={workspace.createNewFile}
+        onCreateFolder={workspace.createNewFolder}
+        onRefreshProject={workspace.refreshProject}
+        onRevealFile={workspace.revealFile}
         onSelectFile={workspace.switchFile}
-        onMoveFile={workspace.moveProjectFile}
         onDeleteFile={workspace.deleteFile}
+        onDeleteFolder={workspace.deleteFolder}
         onRenameFile={workspace.renameFile}
+        onRenameFolder={workspace.renameFolder}
+        onResizeStart={startProjectSidebarResize}
       />
       <div
         className="writer-workspace"
+        data-direction={direction}
         style={{ "--editor-split": `${splitPercent}%` } as CSSProperties}
       >
         <MarkdownEditor

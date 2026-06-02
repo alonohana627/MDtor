@@ -70,7 +70,9 @@ hook:
   deleted outside the app, the workspace switches to the next available file or
   clears the editor when no files remain.
 - `useProjectKeyboardShortcuts`: handles `Ctrl` / `Cmd` project shortcuts.
-- `useProjectWorkspaceActions`: exposes UI actions as callbacks.
+- `useProjectWorkspaceActions`: composes focused workspace action modules for
+  sync/fallback work, project lifecycle actions, file actions, folder actions,
+  path helpers, and shared busy/error handling.
 - `workspaceCore`: shared load/save/read/persistence primitives.
 - `workspaceFileOperations`: create, delete, rename, switch, reorder, and
   active-file fallback behavior.
@@ -152,8 +154,10 @@ Inline links are allowlisted before rendering. Only `http:`, `https:`, and
 
 Document export is split between `src/services/documentExport.ts`, which owns
 save-location prompts and Tauri/browser writes, and
-`src/markdown/exportMarkdown.ts`, which uses `markdown-it` HTML and tokens to
-produce standalone HTML, PDF bytes, and DOCX bytes.
+`src/markdown/exportMarkdown.ts`, which is the public export API. Focused
+modules under `src/markdown/export/` build export-ready preview HTML, paginated
+A4 PDF bytes, and editable DOCX bytes from the same Markdown renderer and token
+stream used by preview.
 
 Tauri also defines a CSP in `src-tauri/tauri.conf.json` so the desktop webview
 does not run with CSP disabled.

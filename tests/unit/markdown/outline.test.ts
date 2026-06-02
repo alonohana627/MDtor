@@ -3,12 +3,20 @@ import { getActiveOutlineItem, getMarkdownOutline } from "../../../src/markdown/
 
 describe("outline helpers", () => {
   it("extracts heading hierarchy with stable duplicate ids", () => {
-    const outline = getMarkdownOutline("# Intro\n\n## Intro\n\n### Details");
+    const outline = getMarkdownOutline(
+      "# Intro\n\n## Intro\n\n### Details\n\n#### `Code` and ![Image text](image.png)",
+    );
 
     expect(outline).toEqual([
       { id: "intro", level: 1, text: "Intro", line: 1 },
       { id: "intro-2", level: 2, text: "Intro", line: 3 },
       { id: "details", level: 3, text: "Details", line: 5 },
+      {
+        id: "code-and-image-text-image-png",
+        level: 4,
+        text: "Code and ![Image text](image.png)",
+        line: 7,
+      },
     ]);
   });
 
