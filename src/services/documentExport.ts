@@ -37,9 +37,7 @@ const EXPORT_CONFIG = {
 function getBaseFileName(filePath: string | null) {
   const fileName = filePath?.split(/[\\/]/).filter(Boolean).pop() ?? "untitled.md";
 
-  return (
-    fileName.replace(/\.(md|markdown|pdf|docx)$/i, "").trim() || "untitled"
-  );
+  return fileName.replace(/\.(md|markdown|pdf|docx)$/i, "").trim() || "untitled";
 }
 
 function getExportBaseFileName({

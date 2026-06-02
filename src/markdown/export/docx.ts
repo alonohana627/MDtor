@@ -318,9 +318,7 @@ function renderDocxDocuments(
   context: DocxRenderContext,
 ) {
   const exportDocuments =
-    documents.length > 0
-      ? documents
-      : [{ relativePath: "untitled.md", markdown: "" }];
+    documents.length > 0 ? documents : [{ relativePath: "untitled.md", markdown: "" }];
   const children: Paragraph[] = [];
 
   for (const [index, document] of exportDocuments.entries()) {

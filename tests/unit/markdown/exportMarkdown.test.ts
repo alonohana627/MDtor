@@ -222,13 +222,9 @@ describe("exportMarkdown", () => {
     expect(documentXml).toContain("A");
     expect(documentXml).toContain("B");
     expect(documentXml).toContain("C");
-    expect(documentXml.match(/w:type=\"page\"/g)).toHaveLength(2);
-    expect(documentXml.indexOf("First")).toBeLessThan(
-      documentXml.indexOf("Second"),
-    );
-    expect(documentXml.indexOf("Second")).toBeLessThan(
-      documentXml.indexOf("Third"),
-    );
+    expect(documentXml.match(/w:type="page"/g)).toHaveLength(2);
+    expect(documentXml.indexOf("First")).toBeLessThan(documentXml.indexOf("Second"));
+    expect(documentXml.indexOf("Second")).toBeLessThan(documentXml.indexOf("Third"));
   });
 
   it("keeps unsafe DOCX links inert", async () => {

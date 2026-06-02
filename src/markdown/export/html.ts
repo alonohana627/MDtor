@@ -77,9 +77,7 @@ export function createExportHtmlElementFromDocuments(
 
 function renderMarkdownDocumentSections(documents: MarkdownExportDocument[]) {
   const exportDocuments =
-    documents.length > 0
-      ? documents
-      : [{ relativePath: "untitled.md", markdown: "" }];
+    documents.length > 0 ? documents : [{ relativePath: "untitled.md", markdown: "" }];
 
   return exportDocuments
     .map((document, index) => {

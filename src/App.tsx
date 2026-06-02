@@ -78,7 +78,8 @@ function App() {
   const deferredMarkdown = useDeferredValue(workspace.markdown);
   const outline = useMemo(() => getMarkdownOutline(deferredMarkdown), [deferredMarkdown]);
   const stats = useMemo(() => getDocumentStats(deferredMarkdown), [deferredMarkdown]);
-  const canExportProject = Boolean(workspace.projectSource) && workspace.projectFiles.length > 0;
+  const canExportProject =
+    Boolean(workspace.projectSource) && workspace.projectFiles.length > 0;
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));

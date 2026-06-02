@@ -321,10 +321,7 @@ describe("useProjectWorkspace", () => {
       { relativePath: "chapters/c.md", markdown: "content:chapters/c.md" },
     ]);
     expect(readProjectFileMock).toHaveBeenCalledWith("/notes/book", "a.md");
-    expect(readProjectFileMock).toHaveBeenCalledWith(
-      "/notes/book",
-      "chapters/c.md",
-    );
+    expect(readProjectFileMock).toHaveBeenCalledWith("/notes/book", "chapters/c.md");
   });
 
   it("ignores manual saves when no project is open", async () => {
