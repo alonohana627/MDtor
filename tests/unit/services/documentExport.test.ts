@@ -3,6 +3,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { exportMarkdownDocument } from "../../../src/services/documentExport";
 import {
+  markdownDocumentsToDocxBytes,
+  markdownDocumentsToPdfBytes,
   markdownToDocxBytes,
   markdownToPdfBytes,
 } from "../../../src/markdown/exportMarkdown";
@@ -17,6 +19,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("../../../src/markdown/exportMarkdown", () => ({
+  markdownDocumentsToDocxBytes: vi.fn(),
+  markdownDocumentsToPdfBytes: vi.fn(),
   markdownToDocxBytes: vi.fn(),
   markdownToPdfBytes: vi.fn(),
 }));
@@ -24,6 +28,8 @@ vi.mock("../../../src/markdown/exportMarkdown", () => ({
 const invokeMock = vi.mocked(invoke);
 const isTauriMock = vi.mocked(isTauri);
 const saveMock = vi.mocked(save);
+const markdownDocumentsToDocxBytesMock = vi.mocked(markdownDocumentsToDocxBytes);
+const markdownDocumentsToPdfBytesMock = vi.mocked(markdownDocumentsToPdfBytes);
 const markdownToDocxBytesMock = vi.mocked(markdownToDocxBytes);
 const markdownToPdfBytesMock = vi.mocked(markdownToPdfBytes);
 
@@ -33,6 +39,8 @@ describe("exportMarkdownDocument", () => {
     isTauriMock.mockReturnValue(true);
     saveMock.mockResolvedValue("/exports/chapter.pdf");
     invokeMock.mockResolvedValue(undefined);
+    markdownDocumentsToPdfBytesMock.mockResolvedValue(new Uint8Array([7, 8, 9]));
+    markdownDocumentsToDocxBytesMock.mockResolvedValue(new Uint8Array([10, 11, 12]));
     markdownToPdfBytesMock.mockResolvedValue(new Uint8Array([1, 2, 3]));
     markdownToDocxBytesMock.mockResolvedValue(new Uint8Array([4, 5, 6]));
   });
@@ -74,6 +82,60 @@ describe("exportMarkdownDocument", () => {
       expect.objectContaining({ defaultPath: "untitled.docx" }),
     );
     expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("exports multiple Markdown documents through the multi-document DOCX path", async () => {
+    saveMock.mockResolvedValueOnce("/exports/book.docx");
+    const documents = [
+      { relativePath: "a.md", markdown: "# A" },
+      { relativePath: "b.md", markdown: "# B" },
+    ];
+
+    await expect(
+      exportMarkdownDocument({
+        markdown: "# Active",
+        activeFilePath: "drafts/chapter.md",
+        defaultFileName: "book",
+        direction: "ltr",
+        documents,
+        format: "docx",
+      }),
+    ).resolves.toBe(true);
+
+    expect(markdownDocumentsToDocxBytesMock).toHaveBeenCalledWith(documents, "ltr");
+    expect(markdownToDocxBytesMock).not.toHaveBeenCalled();
+    expect(saveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: "book.docx" }),
+    );
+    expect(invokeMock).toHaveBeenCalledWith("save_export_file", {
+      path: "/exports/book.docx",
+      bytes: [10, 11, 12],
+    });
+  });
+
+  it("exports multiple Markdown documents through the multi-document PDF path", async () => {
+    saveMock.mockResolvedValueOnce("/exports/browser-book.pdf");
+    const documents = [{ relativePath: "chapter.md", markdown: "# Chapter" }];
+
+    await expect(
+      exportMarkdownDocument({
+        markdown: "# Active",
+        activeFilePath: null,
+        defaultFileName: "Browser Book",
+        direction: "rtl",
+        documents,
+        format: "pdf",
+      }),
+    ).resolves.toBe(true);
+
+    expect(markdownDocumentsToPdfBytesMock).toHaveBeenCalledWith(
+      documents,
+      "Browser Book",
+      "rtl",
+    );
+    expect(saveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: "Browser Book.pdf" }),
+    );
   });
 
   it("uses browser save handles when available", async () => {

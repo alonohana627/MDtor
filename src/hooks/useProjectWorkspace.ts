@@ -15,8 +15,10 @@ import { useProjectPolling } from "./useProjectPolling";
 import { useProjectWorkspaceActions } from "./useProjectWorkspaceActions";
 import {
   handleRestoreWorkspaceError,
+  readWorkspaceDocument,
   restoreWorkspaceProject,
 } from "./useProjectWorkspaceHelpers";
+import { type MarkdownExportDocument } from "../services/documentExport";
 
 export function useProjectWorkspace() {
   const [markdown, setMarkdown] = useState(starterMarkdown);
@@ -78,6 +80,32 @@ export function useProjectWorkspace() {
     },
     [projectSource],
   );
+
+  const loadProjectDocuments = useCallback(async (): Promise<
+    MarkdownExportDocument[]
+  > => {
+    if (!projectSource) {
+      throw new Error("Open a project folder before exporting project files.");
+    }
+
+    const sortedFiles = [...projectFilesRef.current].sort((leftFile, rightFile) =>
+      leftFile.relativePath.localeCompare(rightFile.relativePath),
+    );
+
+    return Promise.all(
+      sortedFiles.map(async (file) => ({
+        relativePath: file.relativePath,
+        markdown:
+          file.relativePath === activeFilePathRef.current
+            ? markdown
+            : await readWorkspaceDocument(
+                projectSource,
+                browserFileHandlesRef.current,
+                file.relativePath,
+              ),
+      })),
+    );
+  }, [markdown, projectSource]);
 
   const {
     createNewFile,
@@ -209,6 +237,7 @@ export function useProjectWorkspace() {
     isBusy,
     isDirty,
     loadProjectImage,
+    loadProjectDocuments,
     markdown,
     moveProjectFile,
     openProjectFolder,

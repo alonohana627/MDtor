@@ -2,6 +2,10 @@ import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createExportHtmlElement,
+  createExportHtmlElementFromDocuments,
+  markdownDocumentsToDocxBytes,
+  markdownDocumentsToPdfBytes,
+  markdownDocumentsToStandaloneHtml,
   markdownToDocxBytes,
   markdownToPdfBytes,
   markdownToStandaloneHtml,
@@ -60,6 +64,27 @@ describe("exportMarkdown", () => {
     expect(html).not.toContain("# Title");
   });
 
+  it("builds multi-document standalone HTML with real print page breaks", () => {
+    const html = markdownDocumentsToStandaloneHtml(
+      [
+        { relativePath: "b.md", markdown: "# B\n\nSecond" },
+        { relativePath: "c.md", markdown: "# C\n\nThird" },
+      ],
+      "Book",
+      "ltr",
+    );
+    const document = new DOMParser().parseFromString(html, "text/html");
+    const sections = document.querySelectorAll(".export-file");
+
+    expect(sections).toHaveLength(2);
+    expect(sections[0].classList.contains("export-file-page-break")).toBe(false);
+    expect(sections[1].classList.contains("export-file-page-break")).toBe(true);
+    expect(sections[0].querySelector("h1")?.textContent).toBe("B");
+    expect(sections[1].querySelector("h1")?.textContent).toBe("C");
+    expect(html).toContain("break-before: page");
+    expect(html).toContain("page-break-before: always");
+  });
+
   it("creates a hidden export element for PDF rendering", () => {
     const element = createExportHtmlElement("# Title", "Article", "ltr");
 
@@ -67,6 +92,21 @@ describe("exportMarkdown", () => {
     expect(element.dataset.exportTitle).toBe("Article");
     expect(element.querySelector("h1")?.textContent).toBe("Title");
     expect(element.querySelector("style")?.textContent).toContain("@page");
+  });
+
+  it("creates hidden multi-document export elements for PDF rendering", () => {
+    const element = createExportHtmlElementFromDocuments(
+      [
+        { relativePath: "a.md", markdown: "# A" },
+        { relativePath: "b.md", markdown: "# B" },
+      ],
+      "Book",
+      "rtl",
+    );
+
+    expect(element).toHaveAttribute("dir", "rtl");
+    expect(element.querySelectorAll(".export-file")).toHaveLength(2);
+    expect(element.querySelectorAll(".export-file-page-break")).toHaveLength(1);
   });
 
   it("renders PDF bytes through html2pdf with A4 pagination options", async () => {
@@ -84,6 +124,24 @@ describe("exportMarkdown", () => {
     );
     expect(html2PdfWorker.from).toHaveBeenCalledWith(
       expect.objectContaining({ dir: "rtl" }),
+    );
+  });
+
+  it("renders multi-document PDF bytes from one paginated export element", async () => {
+    const bytes = await markdownDocumentsToPdfBytes(
+      [
+        { relativePath: "a.md", markdown: "# A" },
+        { relativePath: "b.md", markdown: "# B" },
+      ],
+      "Book",
+      "ltr",
+    );
+
+    expect(new TextDecoder().decode(bytes)).toContain("%PDF-1.4");
+    expect(html2PdfWorker.from).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dataset: expect.objectContaining({ exportTitle: "Book" }),
+      }),
     );
   });
 
@@ -148,6 +206,29 @@ describe("exportMarkdown", () => {
     );
 
     expect(emptyDocumentXml).toContain("<w:p>");
+  });
+
+  it("creates DOCX page breaks between exported Markdown files", async () => {
+    const bytes = await markdownDocumentsToDocxBytes(
+      [
+        { relativePath: "a.md", markdown: "# A\n\nFirst" },
+        { relativePath: "b.md", markdown: "# B\n\nSecond" },
+        { relativePath: "c.md", markdown: "# C\n\nThird" },
+      ],
+      "ltr",
+    );
+    const documentXml = await readDocxXml(bytes, "word/document.xml");
+
+    expect(documentXml).toContain("A");
+    expect(documentXml).toContain("B");
+    expect(documentXml).toContain("C");
+    expect(documentXml.match(/w:type=\"page\"/g)).toHaveLength(2);
+    expect(documentXml.indexOf("First")).toBeLessThan(
+      documentXml.indexOf("Second"),
+    );
+    expect(documentXml.indexOf("Second")).toBeLessThan(
+      documentXml.indexOf("Third"),
+    );
   });
 
   it("keeps unsafe DOCX links inert", async () => {

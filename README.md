@@ -25,7 +25,9 @@ for recent projects and active files.
 - Live outline sidebar generated from document headings.
 - Adjustable editor/preview split layout.
 - Zen Mode and Typewriter Mode for focused writing.
-- Preview-faithful PDF and editable DOCX export.
+- Preview-faithful PDF and editable DOCX export for the active file or the
+  whole project, with project files exported alphabetically and starting on
+  fresh pages.
 - Folder-based Markdown projects with recursive file discovery.
 - Native folder picking in the Tauri desktop app.
 - Browser folder opening and saving in browsers that support the File System

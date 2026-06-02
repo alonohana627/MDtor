@@ -6,6 +6,7 @@ import {
   HeadingLevel,
   LevelFormat,
   Packer,
+  PageBreak,
   Paragraph,
   ShadingType,
   TextRun,
@@ -21,6 +22,7 @@ import {
   type ExportDocumentDirection,
 } from "./styles";
 import { getMarkdownTokens } from "../markdownRendererCore";
+import { type MarkdownExportDocument } from "./types";
 
 const safeDocxLinkProtocols = new Set(["http:", "https:", "mailto:"]);
 const headingStyles = [
@@ -45,6 +47,16 @@ type DocxRenderContext = {
 
 export async function markdownToDocxBytes(
   markdown: string,
+  direction: ExportDocumentDirection = "ltr",
+) {
+  return markdownDocumentsToDocxBytes(
+    [{ relativePath: "Document", markdown }],
+    direction,
+  );
+}
+
+export async function markdownDocumentsToDocxBytes(
+  documents: MarkdownExportDocument[],
   direction: ExportDocumentDirection = "ltr",
 ) {
   const doc = new Document({
@@ -92,7 +104,7 @@ export async function markdownToDocxBytes(
             },
           },
         },
-        children: renderDocxBlocks(markdown, { direction }),
+        children: renderDocxDocuments(documents, { direction }),
       },
     ],
   });
@@ -299,6 +311,33 @@ function renderDocxBlocks(markdown: string, context: DocxRenderContext) {
   }
 
   return children.length > 0 ? children : [new Paragraph("")];
+}
+
+function renderDocxDocuments(
+  documents: MarkdownExportDocument[],
+  context: DocxRenderContext,
+) {
+  const exportDocuments =
+    documents.length > 0
+      ? documents
+      : [{ relativePath: "untitled.md", markdown: "" }];
+  const children: Paragraph[] = [];
+
+  for (const [index, document] of exportDocuments.entries()) {
+    if (index > 0) {
+      children.push(createDocxPageBreakParagraph());
+    }
+
+    children.push(...renderDocxBlocks(document.markdown, context));
+  }
+
+  return children;
+}
+
+function createDocxPageBreakParagraph() {
+  return new Paragraph({
+    children: [new PageBreak()],
+  });
 }
 
 function createDocxParagraph(

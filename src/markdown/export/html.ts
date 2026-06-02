@@ -5,14 +5,27 @@ import {
   type ExportDocumentDirection,
 } from "./styles";
 import { renderMarkdownToHtml } from "../markdownRenderer";
+import { type MarkdownExportDocument } from "./types";
 
 export function markdownToStandaloneHtml(
   markdown: string,
   title = "Document",
   direction: ExportDocumentDirection = "ltr",
 ) {
+  return markdownDocumentsToStandaloneHtml(
+    [{ relativePath: title, markdown }],
+    title,
+    direction,
+  );
+}
+
+export function markdownDocumentsToStandaloneHtml(
+  documents: MarkdownExportDocument[],
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
   const exportDirection = getExportDirection(direction);
-  const body = renderMarkdownToHtml(markdown);
+  const body = renderMarkdownDocumentSections(documents);
 
   return `<!doctype html>
 <html lang="en" dir="${exportDirection}">
@@ -24,7 +37,7 @@ export function markdownToStandaloneHtml(
 </head>
 <body>
   <article class="markdown-preview export-document" dir="${exportDirection}">
-${body || '<p class="empty-preview">Nothing to preview yet.</p>'}
+${body}
   </article>
 </body>
 </html>
@@ -36,7 +49,19 @@ export function createExportHtmlElement(
   title = "Document",
   direction: ExportDocumentDirection = "ltr",
 ) {
-  const documentHtml = markdownToStandaloneHtml(markdown, title, direction);
+  return createExportHtmlElementFromDocuments(
+    [{ relativePath: title, markdown }],
+    title,
+    direction,
+  );
+}
+
+export function createExportHtmlElementFromDocuments(
+  documents: MarkdownExportDocument[],
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
+  const documentHtml = markdownDocumentsToStandaloneHtml(documents, title, direction);
   const parsedDocument = new DOMParser().parseFromString(documentHtml, "text/html");
   const article = parsedDocument.querySelector("article");
   const exportElement = document.createElement("article");
@@ -48,6 +73,28 @@ export function createExportHtmlElement(
   exportElement.append(createExportStyleElement(direction));
 
   return exportElement;
+}
+
+function renderMarkdownDocumentSections(documents: MarkdownExportDocument[]) {
+  const exportDocuments =
+    documents.length > 0
+      ? documents
+      : [{ relativePath: "untitled.md", markdown: "" }];
+
+  return exportDocuments
+    .map((document, index) => {
+      const body =
+        renderMarkdownToHtml(document.markdown) ||
+        '<p class="empty-preview">Nothing to preview yet.</p>';
+      const pageBreakClass = index > 0 ? " export-file-page-break" : "";
+
+      return `    <section class="export-file${pageBreakClass}" data-export-file="${escapeHtml(
+        document.relativePath,
+      )}">
+${body}
+    </section>`;
+    })
+    .join("\n");
 }
 
 function createExportStyleElement(direction: ExportDocumentDirection) {
@@ -84,6 +131,16 @@ function getExportCss(direction: ExportDocumentDirection) {
       margin: 0 auto;
       background: #ffffff;
     }
+    .export-file {
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+    .export-file-page-break {
+      break-before: page;
+      page-break-before: always;
+    }
+    .export-file > :first-child { margin-top: 0; }
+    .export-file > :last-child { margin-bottom: 0; }
     .export-document > :first-child { margin-top: 0; }
     .export-document > :last-child { margin-bottom: 0; }
     h1, h2, h3, h4, h5, h6 {

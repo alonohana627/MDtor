@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../src/App";
 import { useProjectWorkspace } from "../../src/hooks/useProjectWorkspace";
@@ -30,6 +30,7 @@ function createWorkspace(
     isBusy: false,
     isDirty: false,
     loadProjectImage: vi.fn(),
+    loadProjectDocuments: vi.fn(),
     markdown: "# Chapter\n\nOne two three.",
     moveProjectFile: vi.fn(),
     openProjectFolder: vi.fn(),
@@ -103,8 +104,18 @@ describe("App", () => {
   });
 
   it("shows live writer stats and exports the active document", async () => {
+    const loadProjectDocuments = vi.fn().mockResolvedValue([
+      { relativePath: "a.md", markdown: "# A" },
+      { relativePath: "b.md", markdown: "# B" },
+    ]);
     useProjectWorkspaceMock.mockReturnValue(
-      createWorkspace({ markdown: "# Chapter\n\nOne two three." }),
+      createWorkspace({
+        activeFilePath: "chapter.md",
+        loadProjectDocuments,
+        markdown: "# Chapter\n\nOne two three.",
+        projectFiles: [{ relativePath: "b.md" }, { relativePath: "a.md" }],
+        projectSource: { kind: "tauri", path: "/notes/book" },
+      }),
     );
     exportMarkdownDocumentMock.mockResolvedValue(true);
 
@@ -116,6 +127,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     fireEvent.click(screen.getByRole("button", { name: "Export DOCX" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export Project DOCX" }));
 
     expect(exportMarkdownDocumentMock).toHaveBeenCalledWith({
       markdown: "# Chapter\n\nOne two three.",
@@ -129,6 +141,34 @@ describe("App", () => {
       direction: "ltr",
       format: "docx",
     });
+    await waitFor(() => {
+      expect(exportMarkdownDocumentMock).toHaveBeenCalledWith({
+        markdown: "# Chapter\n\nOne two three.",
+        activeFilePath: "chapter.md",
+        defaultFileName: "book",
+        direction: "ltr",
+        documents: [
+          { relativePath: "a.md", markdown: "# A" },
+          { relativePath: "b.md", markdown: "# B" },
+        ],
+        format: "docx",
+      });
+    });
+  });
+
+  it("disables project export buttons when no project files are open", () => {
+    useProjectWorkspaceMock.mockReturnValue(
+      createWorkspace({
+        activeFilePath: null,
+        projectFiles: [],
+        projectSource: null,
+      }),
+    );
+
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Export Project PDF" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Export Project DOCX" })).toBeDisabled();
   });
 
   it("toggles Zen Mode with the toolbar and keyboard shortcut", () => {

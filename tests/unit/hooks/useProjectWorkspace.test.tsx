@@ -298,6 +298,35 @@ describe("useProjectWorkspace", () => {
     expect(result.current.isDirty).toBe(false);
   });
 
+  it("loads project documents alphabetically and uses unsaved active editor text", async () => {
+    mockTauriProject([
+      { relativePath: "b.md" },
+      { relativePath: "a.md" },
+      { relativePath: "chapters/c.md" },
+    ]);
+    saveLastTauriProjectPath("/notes/book");
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await waitFor(() => {
+      expect(result.current.activeFilePath).toBe("b.md");
+    });
+
+    act(() => {
+      result.current.setMarkdown("# Unsaved B");
+    });
+
+    await expect(result.current.loadProjectDocuments()).resolves.toEqual([
+      { relativePath: "a.md", markdown: "content:a.md" },
+      { relativePath: "b.md", markdown: "# Unsaved B" },
+      { relativePath: "chapters/c.md", markdown: "content:chapters/c.md" },
+    ]);
+    expect(readProjectFileMock).toHaveBeenCalledWith("/notes/book", "a.md");
+    expect(readProjectFileMock).toHaveBeenCalledWith(
+      "/notes/book",
+      "chapters/c.md",
+    );
+  });
+
   it("ignores manual saves when no project is open", async () => {
     const { result } = renderHook(() => useProjectWorkspace());
 
@@ -307,6 +336,14 @@ describe("useProjectWorkspace", () => {
 
     expect(saveProjectFileMock).not.toHaveBeenCalled();
     expect(saveBrowserProjectFileMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects loading project documents when no project is open", async () => {
+    const { result } = renderHook(() => useProjectWorkspace());
+
+    await expect(result.current.loadProjectDocuments()).rejects.toThrow(
+      "Open a project folder before exporting project files.",
+    );
   });
 
   it("reorders project files and ignores invalid moves", async () => {

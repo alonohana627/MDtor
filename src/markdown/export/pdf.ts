@@ -1,14 +1,30 @@
-import { createExportHtmlElement } from "./html";
+import { createExportHtmlElement, createExportHtmlElementFromDocuments } from "./html";
 import { pageMarginInches, type ExportDocumentDirection } from "./styles";
+import { type MarkdownExportDocument } from "./types";
 
 export async function markdownToPdfBytes(
   markdown: string,
   title = "Document",
   direction: ExportDocumentDirection = "ltr",
 ) {
+  return markdownDocumentsToPdfBytes(
+    [{ relativePath: title, markdown }],
+    title,
+    direction,
+  );
+}
+
+export async function markdownDocumentsToPdfBytes(
+  documents: MarkdownExportDocument[],
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
   const { default: html2pdf } = await import("html2pdf.js");
   const host = document.createElement("div");
-  const exportElement = createExportHtmlElement(markdown, title, direction);
+  const exportElement =
+    documents.length === 1
+      ? createExportHtmlElement(documents[0].markdown, title, direction)
+      : createExportHtmlElementFromDocuments(documents, title, direction);
 
   host.style.position = "fixed";
   host.style.inset = "0 auto auto 0";

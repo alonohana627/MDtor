@@ -1,18 +1,24 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import {
+  markdownDocumentsToDocxBytes,
+  markdownDocumentsToPdfBytes,
   markdownToDocxBytes,
   markdownToPdfBytes,
   type ExportDocumentDirection,
+  type MarkdownExportDocument,
 } from "../markdown/exportMarkdown";
 
 export type ExportFormat = "pdf" | "docx";
+export type { MarkdownExportDocument };
 
 type ExportOptions = {
   markdown: string;
   activeFilePath: string | null;
   direction: ExportDocumentDirection;
   format: ExportFormat;
+  documents?: MarkdownExportDocument[];
+  defaultFileName?: string;
 };
 
 const EXPORT_CONFIG = {
@@ -28,19 +34,36 @@ const EXPORT_CONFIG = {
   },
 } satisfies Record<ExportFormat, { extension: string; mimeType: string; name: string }>;
 
-function getBaseFileName(activeFilePath: string | null) {
-  const fileName = activeFilePath?.split("/").pop() ?? "untitled.md";
+function getBaseFileName(filePath: string | null) {
+  const fileName = filePath?.split(/[\\/]/).filter(Boolean).pop() ?? "untitled.md";
 
-  return fileName.replace(/\.(md|markdown)$/i, "") || "untitled";
+  return (
+    fileName.replace(/\.(md|markdown|pdf|docx)$/i, "").trim() || "untitled"
+  );
+}
+
+function getExportBaseFileName({
+  activeFilePath,
+  defaultFileName,
+}: Pick<ExportOptions, "activeFilePath" | "defaultFileName">) {
+  return getBaseFileName(defaultFileName ?? activeFilePath);
 }
 
 async function createExportPayload({
   markdown,
   activeFilePath,
+  defaultFileName,
+  documents,
   direction,
   format,
 }: ExportOptions): Promise<Uint8Array> {
-  const title = getBaseFileName(activeFilePath);
+  const title = getExportBaseFileName({ activeFilePath, defaultFileName });
+
+  if (documents && documents.length > 0) {
+    return format === "pdf"
+      ? markdownDocumentsToPdfBytes(documents, title, direction)
+      : markdownDocumentsToDocxBytes(documents, direction);
+  }
 
   if (format === "pdf") {
     return markdownToPdfBytes(markdown, title, direction);
@@ -110,7 +133,7 @@ async function saveInBrowser(
 
 export async function exportMarkdownDocument(options: ExportOptions) {
   const config = EXPORT_CONFIG[options.format];
-  const defaultPath = `${getBaseFileName(options.activeFilePath)}.${config.extension}`;
+  const defaultPath = `${getExportBaseFileName(options)}.${config.extension}`;
   const data = await createExportPayload(options);
 
   return isTauri()

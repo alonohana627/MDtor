@@ -17,6 +17,7 @@ import { getDocumentStats } from "./markdown/documentStats";
 import { getLineStartOffset } from "./markdown/lineOffsets";
 import { getMarkdownOutline } from "./markdown/outline";
 import { getProjectLabel } from "./project/projectUtils";
+import { type ProjectSource } from "./project/projectTypes";
 import { exportMarkdownDocument, type ExportFormat } from "./services/documentExport";
 import { type DocumentDirection, type Theme } from "./types";
 import "./App.css";
@@ -30,6 +31,18 @@ type ScrollSyncTarget = {
   scrollHeight: number;
   scrollTop: number;
 };
+
+function getProjectExportFileName(projectSource: ProjectSource | null) {
+  if (!projectSource) {
+    return "project";
+  }
+
+  if (projectSource.kind === "browser") {
+    return projectSource.name;
+  }
+
+  return projectSource.path.split(/[\\/]/).filter(Boolean).pop() ?? "project";
+}
 
 function App() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -65,6 +78,7 @@ function App() {
   const deferredMarkdown = useDeferredValue(workspace.markdown);
   const outline = useMemo(() => getMarkdownOutline(deferredMarkdown), [deferredMarkdown]);
   const stats = useMemo(() => getDocumentStats(deferredMarkdown), [deferredMarkdown]);
+  const canExportProject = Boolean(workspace.projectSource) && workspace.projectFiles.length > 0;
 
   function toggleTheme() {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
@@ -223,6 +237,25 @@ function App() {
     }
   }
 
+  async function handleProjectExport(format: ExportFormat) {
+    setExportError(null);
+
+    try {
+      const documents = await workspace.loadProjectDocuments();
+
+      await exportMarkdownDocument({
+        markdown: workspace.markdown,
+        activeFilePath: workspace.activeFilePath,
+        defaultFileName: getProjectExportFileName(workspace.projectSource),
+        direction,
+        documents,
+        format,
+      });
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   useEffect(() => {
     function handleKeyboardShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "M") {
@@ -269,6 +302,20 @@ function App() {
           </button>
           <button type="button" onClick={() => void handleExport("docx")}>
             Export DOCX
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("pdf")}
+          >
+            Export Project PDF
+          </button>
+          <button
+            type="button"
+            disabled={!canExportProject}
+            onClick={() => void handleProjectExport("docx")}
+          >
+            Export Project DOCX
           </button>
           <button
             type="button"
