@@ -16,6 +16,7 @@
 - Flipped the editor and preview pane positions when switching between LTR and RTL document direction.
 - Moved export, stats, Typewriter, and Zen actions into floating bottom control bars so they no longer cover editor direction controls.
 - Added a production sidebar tree with nested folders, persisted expansion, keyboard navigation, resizing, refresh/reveal/create actions, and right-click rename/delete for files and folders.
+- Aligned package, Cargo, Tauri, lockfile, and changelog versions at `0.3.0`.
 
 ## 0.2.2
 
