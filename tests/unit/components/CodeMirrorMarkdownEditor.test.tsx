@@ -25,6 +25,14 @@ describe("CodeMirrorMarkdownEditor", () => {
     expect(container.querySelector(".cm-editor")).toHaveAttribute("dir", direction);
   });
 
+  it("uses the native caret instead of CodeMirror's custom cursor layer", () => {
+    const { container } = render(
+      <CodeMirrorMarkdownEditor value="שלום" direction="rtl" onChange={vi.fn()} />,
+    );
+
+    expect(container.querySelector(".cm-cursorLayer")).toBeNull();
+  });
+
   it("calls onChange when CodeMirror changes the document", () => {
     const onChange = vi.fn();
     const editorRef = createRef<CodeMirrorMarkdownEditorHandle>();

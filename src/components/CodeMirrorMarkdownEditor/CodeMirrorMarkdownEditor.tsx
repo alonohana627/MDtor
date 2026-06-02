@@ -1,7 +1,32 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { basicSetup } from "codemirror";
+import {
+  crosshairCursor,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from "@codemirror/view";
 import { type Ref, useEffect, useImperativeHandle, useRef } from "react";
 import "./CodeMirrorMarkdownEditor.css";
 
@@ -24,6 +49,33 @@ export type CodeMirrorMarkdownEditorHandle = {
   scrollTo: (options?: ScrollToOptions) => void;
   setSelectionRange: (selectionStart: number, selectionEnd: number) => void;
 };
+
+const markdownEditorSetup = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+  ]),
+];
 
 function createContentAttributes(direction: "ltr" | "rtl") {
   return EditorView.contentAttributes.of({
@@ -164,9 +216,10 @@ export function CodeMirrorMarkdownEditor({
       state: EditorState.create({
         doc: initialValueRef.current,
         extensions: [
-          basicSetup,
+          markdownEditorSetup,
           markdown({ base: markdownLanguage }),
           EditorView.lineWrapping,
+          EditorView.perLineTextDirection.of(true),
           compartments.contentAttributes.of(createContentAttributes(initialDirection)),
           compartments.editorAttributes.of(createEditorAttributes(initialDirection)),
           EditorView.updateListener.of((update) => {
@@ -222,6 +275,7 @@ export function CodeMirrorMarkdownEditor({
         compartments.editorAttributes.reconfigure(createEditorAttributes(direction)),
       ],
     });
+    view.requestMeasure();
   }, [direction]);
 
   useEffect(() => {

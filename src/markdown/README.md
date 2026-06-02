@@ -23,9 +23,9 @@ raw Markdown text
   languages and escapes unsupported fenced code.
 - `outline.ts`: Builds the outline from `markdown-it` heading tokens and uses
   the same slug function as preview heading anchors.
-- `exportMarkdown.ts`: Builds export-ready preview HTML, paginated A4 PDF bytes,
-  and editable DOCX bytes from the same rendered HTML and token stream used by
-  preview.
+- `exportMarkdown.ts`: Public export API.
+- `export/`: Focused HTML, PDF, DOCX, and shared style modules that use the
+  same rendered HTML and token stream as preview.
 
 ## Security
 

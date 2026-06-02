@@ -162,6 +162,22 @@ export function useProjectWorkspaceActions({
     setProjectFiles,
   ]);
 
+  const runBusyProjectAction = useCallback(
+    async (action: () => Promise<void>) => {
+      setIsBusy(true);
+      setProjectError(null);
+
+      try {
+        await action();
+      } catch (error) {
+        setProjectError(toProjectErrorMessage(error));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [setIsBusy, setProjectError],
+  );
+
   const handleMissingActiveFile = useCallback(
     async (files: ProjectFile[]) => {
       if (!projectSource || !activeFilePathRef.current) {
@@ -201,10 +217,7 @@ export function useProjectWorkspaceActions({
   );
 
   const openProjectFolder = useCallback(async () => {
-    setIsBusy(true);
-    setProjectError(null);
-
-    try {
+    await runBusyProjectAction(async () => {
       await openWorkspaceFolder({
         isTauriRuntime: isTauri(),
         isBrowserFolderPickerSupported: isBrowserProjectFolderPickerSupported(),
@@ -239,11 +252,7 @@ export function useProjectWorkspaceActions({
           setRecentProjects,
         },
       });
-    } catch (error) {
-      setProjectError(toProjectErrorMessage(error));
-    } finally {
-      setIsBusy(false);
-    }
+    });
   }, [
     activeFilePathRef,
     browserDirectoryHandleRef,
@@ -251,24 +260,21 @@ export function useProjectWorkspaceActions({
     focusEditor,
     projectFilesRef,
     projectSource,
+    runBusyProjectAction,
     saveActiveDocument,
     setActiveFile,
     setCurrentLine,
-    setIsBusy,
     setMarkdown,
-    setProjectError,
     setProjectFiles,
     setProjectSource,
+    setProjectError,
     setSavedMarkdown,
     setRecentProjects,
   ]);
 
   const openRecentProject = useCallback(
     async (recentProject: RecentProject) => {
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         await saveActiveDocument();
         await openRecentWorkspaceProject({
           recentProject,
@@ -302,11 +308,7 @@ export function useProjectWorkspaceActions({
             setRecentProjects,
           },
         });
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -315,14 +317,14 @@ export function useProjectWorkspaceActions({
       focusEditor,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       saveActiveDocument,
       setActiveFile,
       setCurrentLine,
-      setIsBusy,
       setMarkdown,
-      setProjectError,
       setProjectFiles,
       setProjectSource,
+      setProjectError,
       setRecentProjects,
       setSavedMarkdown,
     ],
@@ -334,10 +336,7 @@ export function useProjectWorkspaceActions({
         return;
       }
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         await switchWorkspaceFile({
           relativePath,
           isDirty,
@@ -357,11 +356,7 @@ export function useProjectWorkspaceActions({
           focusEditor,
           saveActiveDocument,
         });
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -371,28 +366,20 @@ export function useProjectWorkspaceActions({
       isDirty,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       saveActiveDocument,
       setActiveFile,
       setCurrentLine,
-      setIsBusy,
       setMarkdown,
-      setProjectError,
       setSavedMarkdown,
     ],
   );
 
   const handleManualSave = useCallback(async () => {
-    setIsBusy(true);
-    setProjectError(null);
-
-    try {
+    await runBusyProjectAction(async () => {
       await saveActiveDocument(markdown);
-    } catch (error) {
-      setProjectError(toProjectErrorMessage(error));
-    } finally {
-      setIsBusy(false);
-    }
-  }, [markdown, saveActiveDocument, setIsBusy, setProjectError]);
+    });
+  }, [markdown, runBusyProjectAction, saveActiveDocument]);
 
   const createFileAtPath = useCallback(
     async (relativePath: string) => {
@@ -401,10 +388,7 @@ export function useProjectWorkspaceActions({
         return;
       }
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         projectFilesRef.current = await createWorkspaceFile({
           source: projectSource,
           relativePath,
@@ -426,11 +410,7 @@ export function useProjectWorkspaceActions({
           focusEditor,
           saveActiveDocument,
         });
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -440,10 +420,10 @@ export function useProjectWorkspaceActions({
       isDirty,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       saveActiveDocument,
       setActiveFile,
       setCurrentLine,
-      setIsBusy,
       setMarkdown,
       setProjectError,
       setProjectFiles,
@@ -558,10 +538,7 @@ export function useProjectWorkspaceActions({
       return;
     }
 
-    setIsBusy(true);
-    setProjectError(null);
-
-    try {
+    await runBusyProjectAction(async () => {
       const nextFiles = await scanCurrentProjectFiles();
 
       if (
@@ -570,18 +547,13 @@ export function useProjectWorkspaceActions({
       ) {
         await handleMissingActiveFile(nextFiles);
       }
-    } catch (error) {
-      setProjectError(toProjectErrorMessage(error));
-    } finally {
-      setIsBusy(false);
-    }
+    });
   }, [
     activeFilePathRef,
     handleMissingActiveFile,
     projectSource,
+    runBusyProjectAction,
     scanCurrentProjectFiles,
-    setIsBusy,
-    setProjectError,
   ]);
 
   const revealFile = useCallback(
@@ -613,10 +585,7 @@ export function useProjectWorkspaceActions({
         return;
       }
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         projectFilesRef.current = await deleteWorkspaceFile({
           relativePath,
           refs: {
@@ -636,11 +605,7 @@ export function useProjectWorkspaceActions({
           },
           focusEditor,
         });
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -649,11 +614,10 @@ export function useProjectWorkspaceActions({
       focusEditor,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       setActiveFile,
       setCurrentLine,
-      setIsBusy,
       setMarkdown,
-      setProjectError,
       setProjectFiles,
       setSavedMarkdown,
     ],
@@ -689,10 +653,7 @@ export function useProjectWorkspaceActions({
 
       const activeFilePath = activeFilePathRef.current;
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         if (projectSource.kind === "tauri") {
           await deleteProjectFolder(projectSource.path, normalizedFolderPath);
         } else if (browserDirectoryHandleRef.current) {
@@ -710,11 +671,7 @@ export function useProjectWorkspaceActions({
         if (activeFilePath && activeFilePath.startsWith(`${normalizedFolderPath}/`)) {
           await handleMissingActiveFile(nextFiles);
         }
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -723,8 +680,8 @@ export function useProjectWorkspaceActions({
       handleMissingActiveFile,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       scanCurrentProjectFiles,
-      setIsBusy,
       setProjectError,
     ],
   );
@@ -749,10 +706,7 @@ export function useProjectWorkspaceActions({
         return;
       }
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         projectFilesRef.current = await renameWorkspaceFile({
           oldRelativePath: relativePath,
           newRelativePath: nextPath,
@@ -769,11 +723,7 @@ export function useProjectWorkspaceActions({
             setProjectFiles,
           },
         });
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -781,8 +731,8 @@ export function useProjectWorkspaceActions({
       browserFileHandlesRef,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       setActiveFile,
-      setIsBusy,
       setProjectError,
       setProjectFiles,
     ],
@@ -838,13 +788,10 @@ export function useProjectWorkspaceActions({
               activeFilePath,
               normalizedFolderPath,
               normalizedNextFolderPath,
-            )
+          )
           : null;
 
-      setIsBusy(true);
-      setProjectError(null);
-
-      try {
+      await runBusyProjectAction(async () => {
         if (projectSource.kind === "tauri") {
           await renameProjectFolder(
             projectSource.path,
@@ -876,11 +823,7 @@ export function useProjectWorkspaceActions({
         ) {
           await handleMissingActiveFile(nextFiles);
         }
-      } catch (error) {
-        setProjectError(toProjectErrorMessage(error));
-      } finally {
-        setIsBusy(false);
-      }
+      });
     },
     [
       activeFilePathRef,
@@ -889,9 +832,9 @@ export function useProjectWorkspaceActions({
       handleMissingActiveFile,
       projectFilesRef,
       projectSource,
+      runBusyProjectAction,
       scanCurrentProjectFiles,
       setActiveFile,
-      setIsBusy,
       setProjectError,
     ],
   );

@@ -152,9 +152,10 @@ Inline links are allowlisted before rendering. Only `http:`, `https:`, and
 
 Document export is split between `src/services/documentExport.ts`, which owns
 save-location prompts and Tauri/browser writes, and
-`src/markdown/exportMarkdown.ts`, which builds export-ready preview HTML,
-paginated A4 PDF bytes, and editable DOCX bytes from the same Markdown renderer
-and token stream used by preview.
+`src/markdown/exportMarkdown.ts`, which is the public export API. Focused
+modules under `src/markdown/export/` build export-ready preview HTML, paginated
+A4 PDF bytes, and editable DOCX bytes from the same Markdown renderer and token
+stream used by preview.
 
 Tauri also defines a CSP in `src-tauri/tauri.conf.json` so the desktop webview
 does not run with CSP disabled.
