@@ -1,10 +1,12 @@
 .project-sidebar {
+  position: relative;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 100vh;
   border-right: 1px solid var(--border-strong);
   background: var(--sidebar-bg);
+  direction: ltr;
 }
 
 .project-sidebar-header {
@@ -16,31 +18,41 @@
   background: var(--header-bg);
 }
 
-.project-open-button {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 8px 10px;
-  color: var(--button-text);
-  background: var(--button-bg);
-  font-size: 0.86rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .project-sidebar-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 
-.project-open-button:hover {
+.project-open-button {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 7px 8px;
+  color: var(--button-text);
+  background: var(--button-bg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-open-button:hover:not(:disabled) {
   border-color: var(--focus);
 }
 
+.project-open-button:disabled,
+.project-tree-item:disabled,
+.project-file-context-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .project-open-button:focus-visible,
-.project-file:focus-visible,
-.project-file-order-controls button:focus-visible {
+.project-tree-item:focus-visible,
+.project-rename-input:focus-visible,
+.project-file-context-menu button:focus-visible,
+.project-sidebar-resizer:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -92,11 +104,13 @@
   font-size: 0.78rem;
   line-height: 1.3;
   text-align: left;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.recent-project:hover {
+.recent-project:hover:not(:disabled) {
   background: var(--sidebar-hover);
 }
 
@@ -106,72 +120,86 @@
   padding: 8px;
 }
 
-.project-file-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
-  align-items: center;
+.project-tree-row {
+  min-width: 0;
 }
 
-.project-file-row + .project-file-row {
-  margin-top: 4px;
+.project-tree-row + .project-tree-row {
+  margin-top: 2px;
 }
 
-.project-file {
-  display: block;
+.project-tree-item,
+.project-rename-input {
   width: 100%;
-  min-height: 32px;
+  min-height: 30px;
   border: 0;
   border-radius: 6px;
-  padding: 7px 8px;
+  padding: 5px 8px 5px calc(8px + var(--tree-depth, 0) * 14px);
   color: var(--text);
   background: transparent;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.35;
+}
+
+.project-tree-item {
+  display: grid;
+  grid-template-columns: 14px 10px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
   text-align: left;
-  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
-.project-file-order-controls {
-  display: flex;
-  gap: 2px;
-}
-
-.project-file-order-controls button {
-  width: 24px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--button-text);
-  background: var(--button-bg);
-  cursor: pointer;
-}
-
-.project-file-order-controls button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.project-file:hover {
+.project-tree-item:hover:not(:disabled),
+.project-tree-item.selected {
   background: var(--sidebar-hover);
 }
 
-.project-file.active {
+.project-tree-item.active {
   color: var(--text-strong);
   background: var(--sidebar-active);
   font-weight: 700;
 }
 
-.project-file:disabled {
-  cursor: wait;
-  opacity: 0.72;
+.project-tree-disclosure {
+  width: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.project-tree-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--muted);
+}
+
+.project-tree-item-folder .project-tree-icon {
+  background: var(--focus);
+}
+
+.project-tree-name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-dirty-marker {
+  margin-left: 4px;
+  color: var(--error);
+}
+
+.project-rename-input {
+  border: 1px solid var(--focus);
+  color: var(--text);
+  background: var(--button-bg);
 }
 
 .project-file-context-menu {
   position: fixed;
   z-index: 20;
-  min-width: 120px;
+  min-width: 190px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 4px;
@@ -181,6 +209,7 @@
 
 .project-file-context-menu button {
   width: 100%;
+  min-height: 30px;
   border: 0;
   border-radius: 4px;
   padding: 7px 8px;
@@ -191,15 +220,28 @@
   cursor: pointer;
 }
 
-.project-file-context-menu button:last-child {
-  color: var(--error);
-}
-
-.project-file-context-menu button:hover {
+.project-file-context-menu button:hover:not(:disabled) {
   background: var(--sidebar-hover);
 }
 
-.project-file-context-menu button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+.project-file-context-menu button.danger {
+  color: var(--error);
+}
+
+.project-sidebar-resizer {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+}
+
+.project-sidebar-resizer:hover,
+.project-sidebar-resizer:active {
+  background: var(--active-preview-bg);
 }

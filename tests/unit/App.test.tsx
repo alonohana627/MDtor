@@ -20,9 +20,11 @@ function createWorkspace(
 ) {
   return {
     activeFilePath: "chapter.md",
+    createNewFolder: vi.fn(),
     createNewFile: vi.fn(),
     currentLine: 1,
     deleteFile: vi.fn(),
+    deleteFolder: vi.fn(),
     editorRef: { current: null },
     handleManualSave: vi.fn(),
     isBusy: false,
@@ -36,7 +38,10 @@ function createWorkspace(
     projectFiles: [{ relativePath: "chapter.md" }],
     projectSource: { kind: "tauri" as const, path: "/notes/book" },
     recentProjects: [],
+    refreshProject: vi.fn(),
+    revealFile: vi.fn(),
     renameFile: vi.fn(),
+    renameFolder: vi.fn(),
     setCurrentLine: vi.fn(),
     setMarkdown: vi.fn(),
     switchFile: vi.fn(),
@@ -63,7 +68,7 @@ describe("App", () => {
 
     expect(screen.getByText("/notes/book")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "chapter.md" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "chapter.md *" })).toHaveAttribute(
+    expect(screen.getByRole("treeitem", { name: "chapter.md unsaved" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -97,10 +102,11 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows live writer stats and exports the active document", () => {
+  it("shows live writer stats and exports the active document", async () => {
     useProjectWorkspaceMock.mockReturnValue(
       createWorkspace({ markdown: "# Chapter\n\nOne two three." }),
     );
+    exportMarkdownDocumentMock.mockResolvedValue(true);
 
     render(<App />);
 
@@ -108,23 +114,19 @@ describe("App", () => {
       "4 words | 25 chars | 1 min",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "HTML" }));
-    fireEvent.click(screen.getByRole("button", { name: "PDF" }));
-    fireEvent.click(screen.getByRole("button", { name: "DOCX" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export DOCX" }));
 
     expect(exportMarkdownDocumentMock).toHaveBeenCalledWith({
       markdown: "# Chapter\n\nOne two three.",
       activeFilePath: "chapter.md",
-      format: "html",
-    });
-    expect(exportMarkdownDocumentMock).toHaveBeenCalledWith({
-      markdown: "# Chapter\n\nOne two three.",
-      activeFilePath: "chapter.md",
+      direction: "ltr",
       format: "pdf",
     });
     expect(exportMarkdownDocumentMock).toHaveBeenCalledWith({
       markdown: "# Chapter\n\nOne two three.",
       activeFilePath: "chapter.md",
+      direction: "ltr",
       format: "docx",
     });
   });
@@ -362,7 +364,7 @@ describe("App", () => {
 
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "HTML" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
 
     expect(await screen.findByText("failed export")).toBeInTheDocument();
   });

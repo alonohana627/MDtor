@@ -28,12 +28,28 @@ export async function deleteProjectFile(projectPath: string, relativePath: strin
   await invoke("delete_project_file", { projectPath, relativePath });
 }
 
+export async function deleteProjectFolder(projectPath: string, relativePath: string) {
+  await invoke("delete_project_folder", { projectPath, relativePath });
+}
+
 export async function renameProjectFile(
   projectPath: string,
   oldRelativePath: string,
   newRelativePath: string,
 ) {
   await invoke("rename_project_file", {
+    projectPath,
+    oldRelativePath,
+    newRelativePath,
+  });
+}
+
+export async function renameProjectFolder(
+  projectPath: string,
+  oldRelativePath: string,
+  newRelativePath: string,
+) {
+  await invoke("rename_project_folder", {
     projectPath,
     oldRelativePath,
     newRelativePath,

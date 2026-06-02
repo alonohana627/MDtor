@@ -23,6 +23,7 @@ import "./App.css";
 
 const SPLIT_STORAGE_KEY = "mdtor:editor-preview-split";
 const SCROLL_SYNC_STORAGE_KEY = "mdtor:editor-preview-scroll-sync";
+const PROJECT_SIDEBAR_WIDTH_STORAGE_KEY = "mdtor:project-sidebar-width";
 
 type ScrollSyncTarget = {
   clientHeight: number;
@@ -39,6 +40,15 @@ function App() {
     return Number.isFinite(storedValue) && storedValue >= 25 && storedValue <= 75
       ? storedValue
       : 50;
+  });
+  const [projectSidebarWidth, setProjectSidebarWidth] = useState(() => {
+    const storedValue = Number(
+      window.localStorage.getItem(PROJECT_SIDEBAR_WIDTH_STORAGE_KEY),
+    );
+
+    return Number.isFinite(storedValue) && storedValue >= 180 && storedValue <= 360
+      ? storedValue
+      : 220;
   });
   const [isZenMode, setIsZenMode] = useState(false);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
@@ -179,6 +189,25 @@ function App() {
     window.addEventListener("pointerup", stopResize);
   }
 
+  function startProjectSidebarResize(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const nextWidth = Math.min(360, Math.max(180, moveEvent.clientX));
+
+      setProjectSidebarWidth(nextWidth);
+      window.localStorage.setItem(PROJECT_SIDEBAR_WIDTH_STORAGE_KEY, String(nextWidth));
+    }
+
+    function stopResize() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+  }
+
   async function handleExport(format: ExportFormat) {
     setExportError(null);
 
@@ -186,6 +215,7 @@ function App() {
       await exportMarkdownDocument({
         markdown: workspace.markdown,
         activeFilePath: workspace.activeFilePath,
+        direction,
         format,
       });
     } catch (error) {
@@ -213,6 +243,7 @@ function App() {
       className="app-shell"
       data-theme={theme}
       data-zen={isZenMode ? "true" : "false"}
+      style={{ "--project-sidebar-width": `${projectSidebarWidth}px` } as CSSProperties}
     >
       {!isZenMode ? (
         <div className="top-controls" aria-label="Display controls">
@@ -233,14 +264,11 @@ function App() {
           <div className="writer-stat" aria-label="Document statistics">
             {stats.words} words | {stats.characters} chars | {stats.readingMinutes} min
           </div>
-          <button type="button" onClick={() => void handleExport("html")}>
-            HTML
-          </button>
           <button type="button" onClick={() => void handleExport("pdf")}>
-            PDF
+            Export PDF
           </button>
           <button type="button" onClick={() => void handleExport("docx")}>
-            DOCX
+            Export DOCX
           </button>
           <button
             type="button"
@@ -270,13 +298,19 @@ function App() {
         recentProjects={workspace.recentProjects}
         isBusy={workspace.isBusy}
         error={workspace.projectError}
+        canRevealFiles={workspace.projectSource?.kind === "tauri"}
         onOpenProject={workspace.openProjectFolder}
         onOpenRecentProject={workspace.openRecentProject}
         onCreateFile={workspace.createNewFile}
+        onCreateFolder={workspace.createNewFolder}
+        onRefreshProject={workspace.refreshProject}
+        onRevealFile={workspace.revealFile}
         onSelectFile={workspace.switchFile}
-        onMoveFile={workspace.moveProjectFile}
         onDeleteFile={workspace.deleteFile}
+        onDeleteFolder={workspace.deleteFolder}
         onRenameFile={workspace.renameFile}
+        onRenameFolder={workspace.renameFolder}
+        onResizeStart={startProjectSidebarResize}
       />
       <div
         className="writer-workspace"

@@ -43,9 +43,11 @@ vi.mock("../../../src/hooks/useProjectPolling", () => ({
 vi.mock("../../../src/services/browserProjectFiles", () => ({
   isBrowserProjectFolderPickerSupported: vi.fn(() => false),
   createBrowserProjectFile: vi.fn(),
+  deleteBrowserProjectFolder: vi.fn(),
   deleteBrowserProjectFile: vi.fn(),
   openBrowserProjectFolder: vi.fn(),
   readBrowserProjectFile: vi.fn(),
+  renameBrowserProjectFolder: vi.fn(),
   saveBrowserProjectFile: vi.fn(),
   scanBrowserProjectFolder: vi.fn(),
 }));
@@ -53,7 +55,9 @@ vi.mock("../../../src/services/browserProjectFiles", () => ({
 vi.mock("../../../src/services/projectFiles", () => ({
   createProjectFile: vi.fn(),
   deleteProjectFile: vi.fn(),
+  deleteProjectFolder: vi.fn(),
   readProjectFile: vi.fn(),
+  renameProjectFolder: vi.fn(),
   saveProjectFile: vi.fn(),
   scanProjectFolder: vi.fn(),
 }));

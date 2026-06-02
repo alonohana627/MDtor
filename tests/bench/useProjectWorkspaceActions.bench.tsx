@@ -12,11 +12,19 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../src/services/browserProjectFiles", () => ({
+  deleteBrowserProjectFolder: vi.fn(async () => undefined),
   isBrowserProjectFolderPickerSupported: vi.fn(() => false),
+  renameBrowserProjectFolder: vi.fn(async () => undefined),
   scanBrowserProjectFolder: vi.fn(async () => ({
     files: [],
     fileHandles: new Map(),
   })),
+}));
+
+vi.mock("../../src/services/projectFiles", () => ({
+  deleteProjectFolder: vi.fn(async () => undefined),
+  renameProjectFolder: vi.fn(async () => undefined),
+  scanProjectFolder: vi.fn(async () => []),
 }));
 
 vi.mock("../../src/hooks/useProjectWorkspaceHelpers", async () => {

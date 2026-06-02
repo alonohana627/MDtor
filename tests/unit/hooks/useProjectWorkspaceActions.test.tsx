@@ -2,9 +2,17 @@ import { act, renderHook } from "@testing-library/react";
 import { isTauri } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  deleteBrowserProjectFolder,
   isBrowserProjectFolderPickerSupported,
+  renameBrowserProjectFolder,
   scanBrowserProjectFolder,
 } from "../../../src/services/browserProjectFiles";
+import {
+  deleteProjectFolder,
+  renameProjectFolder,
+  scanProjectFolder,
+  type ProjectFile,
+} from "../../../src/services/projectFiles";
 import { useProjectWorkspaceActions } from "../../../src/hooks/useProjectWorkspaceActions";
 import {
   applyActiveFileFallback,
@@ -24,8 +32,16 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../../src/services/browserProjectFiles", () => ({
+  deleteBrowserProjectFolder: vi.fn(),
   isBrowserProjectFolderPickerSupported: vi.fn(),
+  renameBrowserProjectFolder: vi.fn(),
   scanBrowserProjectFolder: vi.fn(),
+}));
+
+vi.mock("../../../src/services/projectFiles", () => ({
+  deleteProjectFolder: vi.fn(),
+  renameProjectFolder: vi.fn(),
+  scanProjectFolder: vi.fn(),
 }));
 
 vi.mock("../../../src/hooks/useProjectWorkspaceHelpers", async () => {
@@ -53,6 +69,11 @@ const isBrowserProjectFolderPickerSupportedMock = vi.mocked(
   isBrowserProjectFolderPickerSupported,
 );
 const scanBrowserProjectFolderMock = vi.mocked(scanBrowserProjectFolder);
+const deleteBrowserProjectFolderMock = vi.mocked(deleteBrowserProjectFolder);
+const renameBrowserProjectFolderMock = vi.mocked(renameBrowserProjectFolder);
+const deleteProjectFolderMock = vi.mocked(deleteProjectFolder);
+const renameProjectFolderMock = vi.mocked(renameProjectFolder);
+const scanProjectFolderMock = vi.mocked(scanProjectFolder);
 const applyActiveFileFallbackMock = vi.mocked(applyActiveFileFallback);
 const createWorkspaceFileMock = vi.mocked(createWorkspaceFile);
 const deleteWorkspaceFileMock = vi.mocked(deleteWorkspaceFile);
@@ -101,8 +122,13 @@ describe("useProjectWorkspaceActions", () => {
     switchWorkspaceFileMock.mockResolvedValue(true);
     createWorkspaceFileMock.mockResolvedValue([{ relativePath: "created.md" }]);
     deleteWorkspaceFileMock.mockResolvedValue([{ relativePath: "chapter-02.md" }]);
+    deleteBrowserProjectFolderMock.mockResolvedValue(undefined);
+    deleteProjectFolderMock.mockResolvedValue(undefined);
     openRecentWorkspaceProjectMock.mockResolvedValue(undefined);
+    renameBrowserProjectFolderMock.mockResolvedValue(undefined);
     renameWorkspaceFileMock.mockResolvedValue([{ relativePath: "renamed.md" }]);
+    renameProjectFolderMock.mockResolvedValue(undefined);
+    scanProjectFolderMock.mockResolvedValue([{ relativePath: "chapter-02.md" }]);
     getNextProjectFilePathMock.mockReturnValue("chapter-02.md");
   });
 
@@ -472,6 +498,32 @@ describe("useProjectWorkspaceActions", () => {
     expect(params.setProjectError).toHaveBeenCalledWith("delete failed");
   });
 
+  it("deletes folders through the project service and falls back when active file was inside", async () => {
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    scanProjectFolderMock.mockResolvedValueOnce([{ relativePath: "chapter-01.md" }]);
+    const params = createParams({
+      activeFilePathRef: { current: "notes/idea.md" },
+      projectFilesRef: {
+        current: [
+          { relativePath: "chapter-01.md" },
+          { relativePath: "notes/idea.md" },
+          { relativePath: "notes/todo.md" },
+        ],
+      },
+    });
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.deleteFolder("notes");
+    });
+
+    expect(deleteProjectFolderMock).toHaveBeenCalledWith("/notes/book", "notes");
+    expect(scanProjectFolderMock).toHaveBeenCalledWith("/notes/book");
+    expect(applyActiveFileFallbackMock).toHaveBeenCalledWith(
+      expect.objectContaining({ files: [{ relativePath: "chapter-01.md" }] }),
+    );
+  });
+
   it("renames files through a prompt and reports invalid names", async () => {
     vi.spyOn(window, "prompt").mockReturnValueOnce("../bad.md");
     const invalidParams = createParams();
@@ -508,5 +560,30 @@ describe("useProjectWorkspaceActions", () => {
     });
 
     expect(params.setProjectError).toHaveBeenCalledWith("rename failed");
+  });
+
+  it("renames folders through the project service and updates the active path", async () => {
+    scanProjectFolderMock.mockResolvedValueOnce([
+      { relativePath: "chapter-01.md" },
+      { relativePath: "chapters/idea.md" },
+    ]);
+    const params = createParams({
+      activeFilePathRef: { current: "notes/idea.md" },
+      projectFilesRef: {
+        current: [{ relativePath: "chapter-01.md" }, { relativePath: "notes/idea.md" }],
+      },
+    });
+    const { result } = renderHook(() => useProjectWorkspaceActions(params));
+
+    await act(async () => {
+      await result.current.renameFolder("notes", "chapters");
+    });
+
+    expect(renameProjectFolderMock).toHaveBeenCalledWith(
+      "/notes/book",
+      "notes",
+      "chapters",
+    );
+    expect(params.setActiveFile).toHaveBeenCalledWith("chapters/idea.md");
   });
 });

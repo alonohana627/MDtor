@@ -1,73 +1,126 @@
-import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createExportHtmlElement,
   markdownToDocxBytes,
   markdownToPdfBytes,
   markdownToStandaloneHtml,
 } from "../../../src/markdown/exportMarkdown";
 
-function decode(bytes: Uint8Array) {
-  return new TextDecoder().decode(bytes);
+const html2PdfWorker = vi.hoisted(() => ({
+  set: vi.fn(),
+  from: vi.fn(),
+  toPdf: vi.fn(),
+  outputPdf: vi.fn(),
+}));
+
+vi.mock("html2pdf.js", () => ({
+  default: vi.fn(() => html2PdfWorker),
+}));
+
+async function readDocxXml(bytes: Uint8Array, path: string) {
+  const zip = await JSZip.loadAsync(bytes);
+  const file = zip.file(path);
+
+  if (!file) {
+    throw new Error(`Missing DOCX part ${path}.`);
+  }
+
+  return file.async("string");
 }
 
 describe("exportMarkdown", () => {
-  it("renders standalone HTML with document styling and Markdown structure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    html2PdfWorker.set.mockReturnValue(html2PdfWorker);
+    html2PdfWorker.from.mockReturnValue(html2PdfWorker);
+    html2PdfWorker.toPdf.mockReturnValue(html2PdfWorker);
+    html2PdfWorker.outputPdf.mockResolvedValue(
+      new TextEncoder().encode("%PDF-1.4\npreview-pdf").buffer,
+    );
+  });
+
+  it("builds standalone export HTML from the same rendered preview structure", () => {
     const html = markdownToStandaloneHtml(
-      "# Title\n\nParagraph with [link](https://example.com) and ![diagram](images/flow.png).\n\n- One\n- Two\n\n> Quote\n\n```ts\nconst x = 1;\n```",
+      "# Title\n\nשלום עולם\n\n- one\n- two\n\n```ts\nconst x = 1;\n```",
       "Article",
+      "rtl",
     );
     const document = new DOMParser().parseFromString(html, "text/html");
 
-    expect(html).toContain("<title>Article</title>");
-    expect(html).toContain("<style>");
+    expect(document.documentElement.getAttribute("dir")).toBe("rtl");
+    expect(document.querySelector("article")?.getAttribute("dir")).toBe("rtl");
     expect(document.querySelector("h1")?.textContent).toBe("Title");
-    expect(document.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
-    expect(document.querySelector("ul")?.textContent).toContain("One");
-    expect(document.querySelector("blockquote")?.textContent).toContain("Quote");
-    expect(document.querySelector("img")?.getAttribute("src")).toBe("images/flow.png");
-    expect(document.querySelector("img")?.getAttribute("alt")).toBe("diagram");
+    expect(document.querySelector("ul")?.textContent).toContain("one");
     expect(document.querySelector("pre code")?.classList.contains("language-ts")).toBe(
       true,
     );
+    expect(document.querySelector("pre code")?.textContent).toContain("const x = 1;");
+    expect(html).toContain("@page { size: A4");
+    expect(html).not.toContain("# Title");
   });
 
-  it("creates a PDF byte stream that includes exported document structure", () => {
-    const pdf = markdownToPdfBytes(
-      "# Title\n\nParagraph\n\n- First\n\n> Quote\n\n```ts\nconst x = 1;\n```",
-      "Article",
+  it("creates a hidden export element for PDF rendering", () => {
+    const element = createExportHtmlElement("# Title", "Article", "ltr");
+
+    expect(element).toHaveAttribute("dir", "ltr");
+    expect(element.dataset.exportTitle).toBe("Article");
+    expect(element.querySelector("h1")?.textContent).toBe("Title");
+    expect(element.querySelector("style")?.textContent).toContain("@page");
+  });
+
+  it("renders PDF bytes through html2pdf with A4 pagination options", async () => {
+    const bytes = await markdownToPdfBytes("# Title", "Article", "rtl");
+
+    expect(new TextDecoder().decode(bytes)).toContain("%PDF-1.4");
+    expect(html2PdfWorker.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        margin: 0.75,
+        jsPDF: expect.objectContaining({ format: "a4", orientation: "portrait" }),
+        pagebreak: expect.objectContaining({
+          avoid: expect.arrayContaining(["h1", "pre", "blockquote", "li"]),
+        }),
+      }),
     );
-    const decoded = decode(pdf);
-
-    expect(decoded.startsWith("%PDF-1.4")).toBe(true);
-    expect(decoded).toContain("Article");
-    expect(decoded).toContain("# Title");
-    expect(decoded).toContain("Paragraph");
-    expect(decoded).toContain("- First");
-    expect(decoded).toContain("Quote");
-    expect(decoded).toContain("const x = 1;");
-    expect(decoded).toContain("xref");
-  });
-
-  it("creates a DOCX package with document content and hyperlink relationships", () => {
-    const docx = markdownToDocxBytes(
-      "# Title\n\n1. First\n\nParagraph with [link](https://example.com).\n\n`code`",
+    expect(html2PdfWorker.from).toHaveBeenCalledWith(
+      expect.objectContaining({ dir: "rtl" }),
     );
-    const decoded = decode(docx);
-
-    expect(decoded.startsWith("PK")).toBe(true);
-    expect(decoded).toContain("word/document.xml");
-    expect(decoded).toContain("word/_rels/document.xml.rels");
-    expect(decoded).toContain("Heading1");
-    expect(decoded).toContain("First");
-    expect(decoded).toContain('<w:hyperlink r:id="rId1"');
-    expect(decoded).toContain('Target="https://example.com"');
-    expect(decoded).toContain("Code");
   });
 
-  it("keeps unsafe DOCX links inert", () => {
-    const decoded = decode(markdownToDocxBytes("[Bad](javascript:alert)"));
+  it("creates editable DOCX content with headings, lists, links, RTL text, and code", async () => {
+    const bytes = await markdownToDocxBytes(
+      "# Title\n\nשלום עולם\n\n- one\n- two\n\nParagraph with **bold**, *italic*, `code`, and [link](https://example.com).\n\n```ts\nconst x = 1;\n```",
+      "rtl",
+    );
+    const documentXml = await readDocxXml(bytes, "word/document.xml");
+    const relsXml = await readDocxXml(bytes, "word/_rels/document.xml.rels");
+    const numberingXml = await readDocxXml(bytes, "word/numbering.xml");
 
-    expect(decoded).toContain("<w:t>Bad</w:t>");
-    expect(decoded).not.toContain("<w:hyperlink");
-    expect(decoded).not.toContain("javascript:alert");
+    expect(documentXml).toContain("Title");
+    expect(documentXml).toContain("שלום עולם");
+    expect(documentXml).toContain("Heading1");
+    expect(documentXml).toContain("CodeBlock");
+    expect(documentXml).toContain("const");
+    expect(documentXml).toContain(" x = ");
+    expect(documentXml).toContain("1");
+    expect(documentXml).toContain(";");
+    expect(documentXml).toContain("<w:b/>");
+    expect(documentXml).toContain("<w:i/>");
+    expect(documentXml).toContain("<w:bidi/>");
+    expect(documentXml).toContain("<w:hyperlink");
+    expect(relsXml).toContain('Target="https://example.com"');
+    expect(documentXml).toContain("<w:numPr>");
+    expect(numberingXml).toContain('<w:numFmt w:val="bullet"');
+  });
+
+  it("keeps unsafe DOCX links inert", async () => {
+    const documentXml = await readDocxXml(
+      await markdownToDocxBytes("[Bad](javascript:alert)", "ltr"),
+      "word/document.xml",
+    );
+
+    expect(documentXml).toContain("Bad");
+    expect(documentXml).not.toContain("<w:hyperlink");
+    expect(documentXml).not.toContain("javascript:alert");
   });
 });

@@ -1,1 +1,1 @@
-export { ProjectSidebar } from "./ProjectSidebar";
+export { ProjectSidebar, type ProjectSidebarProps } from "./ProjectSidebar";

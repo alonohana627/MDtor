@@ -85,6 +85,65 @@ fn resolve_new_project_file(project_path: &str, relative_path: &str) -> CommandR
     Ok(path)
 }
 
+fn resolve_project_folder(project_path: &str, relative_path: &str) -> CommandResult<PathBuf> {
+    let root = normalize_project_root(project_path)?;
+    let relative = Path::new(relative_path);
+
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::Prefix(_)))
+    {
+        return Err("Project folder path must stay inside the project folder.".to_string());
+    }
+
+    let path = root.join(relative);
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|error| format!("Could not resolve project folder: {error}"))?;
+
+    if !canonical_path.starts_with(&root) || canonical_path == root || !canonical_path.is_dir() {
+        return Err("Project folder path must stay inside the project folder.".to_string());
+    }
+
+    Ok(canonical_path)
+}
+
+fn resolve_new_project_folder(project_path: &str, relative_path: &str) -> CommandResult<PathBuf> {
+    let root = normalize_project_root(project_path)?;
+    let relative = Path::new(relative_path);
+
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::Prefix(_)))
+    {
+        return Err("Project folder path must stay inside the project folder.".to_string());
+    }
+
+    let path = root.join(relative);
+    let parent = path.parent().unwrap_or(&root);
+
+    let mut nearest_existing_ancestor = parent;
+    while !nearest_existing_ancestor.exists() {
+        nearest_existing_ancestor = nearest_existing_ancestor
+            .parent()
+            .ok_or_else(|| "Could not resolve project folder parent.".to_string())?;
+    }
+
+    let canonical_parent = nearest_existing_ancestor
+        .canonicalize()
+        .map_err(|error| format!("Could not resolve project folder parent: {error}"))?;
+
+    if !canonical_parent.starts_with(&root) {
+        return Err("Project folder path must stay inside the project folder.".to_string());
+    }
+
+    Ok(path)
+}
+
 fn is_markdown_file(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
@@ -217,6 +276,13 @@ fn delete_project_file(project_path: String, relative_path: String) -> CommandRe
 }
 
 #[tauri::command]
+fn delete_project_folder(project_path: String, relative_path: String) -> CommandResult<()> {
+    let path = resolve_project_folder(&project_path, &relative_path)?;
+
+    fs::remove_dir_all(path).map_err(|error| format!("Could not delete folder: {error}"))
+}
+
+#[tauri::command]
 fn rename_project_file(
     project_path: String,
     old_relative_path: String,
@@ -239,6 +305,35 @@ fn rename_project_file(
     }
 
     fs::rename(old_path, new_path).map_err(|error| format!("Could not rename file: {error}"))
+}
+
+#[tauri::command]
+fn rename_project_folder(
+    project_path: String,
+    old_relative_path: String,
+    new_relative_path: String,
+) -> CommandResult<()> {
+    if old_relative_path == new_relative_path {
+        return Ok(());
+    }
+
+    let old_path = resolve_project_folder(&project_path, &old_relative_path)?;
+    let new_path = resolve_new_project_folder(&project_path, &new_relative_path)?;
+
+    if new_path.starts_with(&old_path) {
+        return Err("Folder cannot be renamed into itself.".to_string());
+    }
+
+    if new_path.exists() {
+        return Err("A folder already exists at that path.".to_string());
+    }
+
+    if let Some(parent) = new_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Could not create folder parent: {error}"))?;
+    }
+
+    fs::rename(old_path, new_path).map_err(|error| format!("Could not rename folder: {error}"))
 }
 
 #[tauri::command]
@@ -296,7 +391,9 @@ pub fn run() {
             save_project_file,
             create_project_file,
             delete_project_file,
+            delete_project_folder,
             rename_project_file,
+            rename_project_folder,
             read_project_asset,
             save_export_file
         ])
@@ -345,6 +442,42 @@ mod tests {
         assert_eq!(
             result,
             Err("A file already exists at that path.".to_string())
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn deletes_project_folder_inside_root() {
+        let root = test_project_root("delete-folder");
+        fs::create_dir_all(root.join("notes").join("images")).unwrap();
+        fs::write(root.join("notes").join("chapter.md"), "# Chapter").unwrap();
+        fs::write(root.join("notes").join("images").join("cover.png"), "image").unwrap();
+
+        delete_project_folder(root.to_string_lossy().to_string(), "notes".to_string()).unwrap();
+
+        assert!(!root.join("notes").exists());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn renames_project_folder_inside_root() {
+        let root = test_project_root("rename-folder");
+        fs::create_dir_all(root.join("drafts")).unwrap();
+        fs::write(root.join("drafts").join("chapter.md"), "# Chapter").unwrap();
+
+        rename_project_folder(
+            root.to_string_lossy().to_string(),
+            "drafts".to_string(),
+            "chapters".to_string(),
+        )
+        .unwrap();
+
+        assert!(!root.join("drafts").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("chapters").join("chapter.md")).unwrap(),
+            "# Chapter"
         );
 
         fs::remove_dir_all(root).unwrap();

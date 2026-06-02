@@ -50,6 +50,19 @@ function parseProjectFilePath(relativePath: string, action: "create" | "delete")
   return { pathParts, fileName };
 }
 
+function parseProjectFolderPath(relativePath: string) {
+  const pathParts = relativePath.split("/").filter(Boolean);
+
+  if (
+    pathParts.length === 0 ||
+    pathParts.some((pathPart) => pathPart === "." || pathPart === "..")
+  ) {
+    throw new Error("Folder paths must stay inside the project folder.");
+  }
+
+  return pathParts;
+}
+
 function getErrorName(error: unknown) {
   return typeof error === "object" && error && "name" in error ? String(error.name) : "";
 }
@@ -61,6 +74,54 @@ function createBrowserProjectId(directoryName: string) {
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   return `${directoryName}:${randomId}`;
+}
+
+async function getBrowserDirectoryAtPath(
+  directoryHandle: FileSystemDirectoryHandle,
+  pathParts: string[],
+  options: { create?: boolean } = {},
+) {
+  let currentDirectory = directoryHandle;
+
+  for (const directoryName of pathParts) {
+    currentDirectory = await currentDirectory.getDirectoryHandle(directoryName, options);
+  }
+
+  return currentDirectory;
+}
+
+async function copyBrowserDirectory(
+  sourceDirectory: FileSystemDirectoryHandle,
+  destinationDirectory: FileSystemDirectoryHandle,
+) {
+  for await (const [name, handle] of sourceDirectory.entries()) {
+    if (handle.kind === "directory") {
+      const nextDestinationDirectory = await destinationDirectory.getDirectoryHandle(
+        name,
+        { create: true },
+      );
+
+      await copyBrowserDirectory(handle, nextDestinationDirectory);
+      continue;
+    }
+
+    const sourceFile = await handle.getFile();
+    const destinationFile = await destinationDirectory.getFileHandle(name, {
+      create: true,
+    });
+    const writable = await destinationFile.createWritable();
+
+    await writable.write(sourceFile);
+    await writable.close();
+  }
+}
+
+async function refreshBrowserFileHandles(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileHandles: Map<string, BrowserProjectFile>,
+) {
+  fileHandles.clear();
+  await collectMarkdownFiles(directoryHandle, fileHandles);
 }
 
 async function collectMarkdownFiles(
@@ -216,6 +277,24 @@ export async function deleteBrowserProjectFile(
   fileHandles.delete(relativePath);
 }
 
+export async function deleteBrowserProjectFolder(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileHandles: Map<string, BrowserProjectFile>,
+  relativePath: string,
+) {
+  const pathParts = parseProjectFolderPath(relativePath);
+  const folderName = pathParts.pop();
+
+  if (!folderName) {
+    throw new Error("Folder paths must stay inside the project folder.");
+  }
+
+  const parentDirectory = await getBrowserDirectoryAtPath(directoryHandle, pathParts);
+
+  await parentDirectory.removeEntry(folderName, { recursive: true });
+  await refreshBrowserFileHandles(directoryHandle, fileHandles);
+}
+
 export async function renameBrowserProjectFile(
   directoryHandle: FileSystemDirectoryHandle,
   fileHandles: Map<string, BrowserProjectFile>,
@@ -232,6 +311,58 @@ export async function renameBrowserProjectFile(
   const content = await readBrowserProjectFile(fileHandles, oldRelativePath);
   await saveBrowserProjectFile(fileHandles, newRelativePath, content);
   await deleteBrowserProjectFile(directoryHandle, fileHandles, oldRelativePath);
+}
+
+export async function renameBrowserProjectFolder(
+  directoryHandle: FileSystemDirectoryHandle,
+  fileHandles: Map<string, BrowserProjectFile>,
+  oldRelativePath: string,
+  newRelativePath: string,
+) {
+  const oldPathParts = parseProjectFolderPath(oldRelativePath);
+  const newPathParts = parseProjectFolderPath(newRelativePath);
+
+  if (
+    oldRelativePath === newRelativePath ||
+    newRelativePath.startsWith(`${oldRelativePath}/`)
+  ) {
+    throw new Error("Folder cannot be renamed into itself.");
+  }
+
+  const oldFolderName = oldPathParts.pop();
+  const newFolderName = newPathParts.pop();
+
+  if (!oldFolderName || !newFolderName) {
+    throw new Error("Folder paths must stay inside the project folder.");
+  }
+
+  const oldParentDirectory = await getBrowserDirectoryAtPath(
+    directoryHandle,
+    oldPathParts,
+  );
+  const newParentDirectory = await getBrowserDirectoryAtPath(
+    directoryHandle,
+    newPathParts,
+    { create: true },
+  );
+  const oldDirectory = await oldParentDirectory.getDirectoryHandle(oldFolderName);
+
+  try {
+    await newParentDirectory.getDirectoryHandle(newFolderName);
+    throw new Error("A folder already exists at that path.");
+  } catch (error) {
+    if (getErrorName(error) !== "NotFoundError") {
+      throw error;
+    }
+  }
+
+  const newDirectory = await newParentDirectory.getDirectoryHandle(newFolderName, {
+    create: true,
+  });
+
+  await copyBrowserDirectory(oldDirectory, newDirectory);
+  await oldParentDirectory.removeEntry(oldFolderName, { recursive: true });
+  await refreshBrowserFileHandles(directoryHandle, fileHandles);
 }
 
 export async function readBrowserProjectAsset(

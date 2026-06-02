@@ -1,156 +1,941 @@
-import DOMPurify from "dompurify";
-import MarkdownIt from "markdown-it";
-import type Token from "markdown-it/lib/token.mjs";
-import markdownItAnchor from "markdown-it-anchor";
-import markdownItFootnote from "markdown-it-footnote";
-import markdownItTaskLists from "markdown-it-task-lists";
 import {
-  escapeHtml,
-  highlightCodeToHtml,
-  renderHighlightedCodeBlockHtml,
-} from "./codeHighlighting";
-import { slugifyHeading } from "./headingSlugs";
+  AlignmentType,
+  BorderStyle,
+  Document,
+  ExternalHyperlink,
+  HeadingLevel,
+  LevelFormat,
+  Packer,
+  Paragraph,
+  ShadingType,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableRow,
+  TextRun,
+  WidthType,
+  convertInchesToTwip,
+  type IParagraphOptions,
+  type ParagraphChild,
+} from "docx";
+import type Token from "markdown-it/lib/token.mjs";
+import { escapeHtml, highlightCodeToHtml } from "./codeHighlighting";
+import { getMarkdownTokens } from "./markdownRendererCore";
+import { renderMarkdownToHtml } from "./markdownRenderer";
 
-const textEncoder = new TextEncoder();
+export type ExportDocumentDirection = "ltr" | "rtl";
 
-const exportHtmlRenderer = new MarkdownIt("commonmark", {
-  html: false,
-  linkify: false,
-  typographer: false,
-  highlight: highlightCodeToHtml,
-})
-  .use(markdownItTaskLists, {
-    enabled: false,
-    label: true,
-    labelAfter: true,
-  })
-  .use(markdownItFootnote)
-  .use(markdownItAnchor, {
-    slugify: slugifyHeading,
-  });
+const pageMarginInches = 0.75;
+const docxPageMargin = convertInchesToTwip(pageMarginInches);
+const safeDocxLinkProtocols = new Set(["http:", "https:", "mailto:"]);
+const headingStyles = [
+  HeadingLevel.HEADING_1,
+  HeadingLevel.HEADING_2,
+  HeadingLevel.HEADING_3,
+  HeadingLevel.HEADING_4,
+  HeadingLevel.HEADING_5,
+  HeadingLevel.HEADING_6,
+] as const;
 
-exportHtmlRenderer.validateLink = () => true;
-exportHtmlRenderer.renderer.rules.fence = renderCodeBlock;
-exportHtmlRenderer.renderer.rules.code_block = renderCodeBlock;
+export const exportStyleContract = {
+  page: {
+    size: "A4",
+    margin: `${pageMarginInches}in`,
+  },
+  fontFamily: 'Georgia, "Times New Roman", serif',
+  headingFontFamily: '"Aptos", "Segoe UI", Arial, sans-serif',
+  codeFontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+  colors: {
+    text: "#24292f",
+    textStrong: "#111827",
+    muted: "#68717d",
+    border: "#d8dee5",
+    quoteBackground: "#f6f8fa",
+    codeBackground: "#eaeef2",
+    codeBlockBackground: "#0f172a",
+    codeBlockText: "#e5e7eb",
+    link: "#0969da",
+    keyword: "#c4b5fd",
+    title: "#93c5fd",
+    string: "#86efac",
+    number: "#fbbf24",
+    attribute: "#fda4af",
+    comment: "#94a3b8",
+    meta: "#67e8f9",
+  },
+} as const;
 
-function escapeXml(value: string) {
-  return escapeHtml(value).replace(/'/g, "&apos;");
+type InlineStyle = {
+  bold?: boolean;
+  italics?: boolean;
+  code?: boolean;
+  rightToLeft?: boolean;
+};
+
+type DocxRenderContext = {
+  direction: ExportDocumentDirection;
+};
+
+function getExportDirection(direction: ExportDocumentDirection | undefined) {
+  return direction === "rtl" ? "rtl" : "ltr";
 }
 
-function renderExportHtml(markdown: string) {
-  return DOMPurify.sanitize(exportHtmlRenderer.render(markdown), {
-    ALLOW_UNKNOWN_PROTOCOLS: false,
-    USE_PROFILES: { html: true },
-  });
-}
-
-function getExportMarkdownTokens(markdown: string) {
-  return exportHtmlRenderer.parse(markdown, {});
-}
-
-function renderCodeBlock(tokens: Token[], index: number) {
-  const token = tokens[index];
-
-  return renderHighlightedCodeBlockHtml(token.content, token.info);
-}
-
-export function markdownToStandaloneHtml(markdown: string, title = "Document") {
-  const body = renderExportHtml(markdown);
+export function markdownToStandaloneHtml(
+  markdown: string,
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
+  const exportDirection = getExportDirection(direction);
+  const body = renderMarkdownToHtml(markdown);
 
   return `<!doctype html>
-<html lang="en">
+<html lang="en" dir="${exportDirection}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)}</title>
-  <style>
-    body { max-width: 760px; margin: 48px auto; padding: 0 24px; color: #17202a; background: #ffffff; font-family: Georgia, "Times New Roman", serif; line-height: 1.65; }
-    h1, h2, h3, h4, h5, h6 { color: #101828; font-family: "Aptos", "Segoe UI", sans-serif; line-height: 1.2; margin: 1.35em 0 0.55em; }
-    h1 { border-bottom: 1px solid #d0d7de; padding-bottom: 0.25em; font-size: 2.15rem; }
-    h2 { border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em; font-size: 1.55rem; }
-    blockquote { margin: 0 0 1em; padding: 0.2em 1em; color: #57606a; border-left: 4px solid #8c959f; background: #f6f8fa; }
-    code { border-radius: 4px; padding: 0.12em 0.3em; background: #eaeef2; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9em; }
-    pre { overflow: auto; border: 1px solid #d0d7de; border-radius: 8px; padding: 16px; background: #0f172a; color: #e5e7eb; }
-    pre code { padding: 0; background: transparent; color: inherit; }
-    img { display: block; max-width: 100%; height: auto; margin: 1rem 0; }
-    a { color: #0969da; }
-  </style>
+  <style>${getExportCss(exportDirection)}</style>
 </head>
 <body>
-${body}
+  <article class="markdown-preview export-document" dir="${exportDirection}">
+${body || '<p class="empty-preview">Nothing to preview yet.</p>'}
+  </article>
 </body>
 </html>
 `;
 }
 
-function markdownToPlainLines(markdown: string) {
-  const tokens = getExportMarkdownTokens(markdown);
-  const lines: string[] = [];
+export function createExportHtmlElement(
+  markdown: string,
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
+  const documentHtml = markdownToStandaloneHtml(markdown, title, direction);
+  const parsedDocument = new DOMParser().parseFromString(documentHtml, "text/html");
+  const article = parsedDocument.querySelector("article");
+  const exportElement = document.createElement("article");
+
+  exportElement.className = "markdown-preview export-document";
+  exportElement.dir = getExportDirection(direction);
+  exportElement.dataset.exportTitle = title;
+  exportElement.innerHTML = article?.innerHTML ?? "";
+  exportElement.append(createExportStyleElement(direction));
+
+  return exportElement;
+}
+
+export async function markdownToPdfBytes(
+  markdown: string,
+  title = "Document",
+  direction: ExportDocumentDirection = "ltr",
+) {
+  const { default: html2pdf } = await import("html2pdf.js");
+  const host = document.createElement("div");
+  const exportElement = createExportHtmlElement(markdown, title, direction);
+
+  host.style.position = "fixed";
+  host.style.inset = "0 auto auto 0";
+  host.style.width = "210mm";
+  host.style.minHeight = "297mm";
+  host.style.opacity = "0";
+  host.style.pointerEvents = "none";
+  host.style.background = "#ffffff";
+  host.append(exportElement);
+  document.body.append(host);
+
+  try {
+    const pdfOptions = {
+      margin: pageMarginInches,
+      filename: `${title}.pdf`,
+      image: { type: "jpeg" as const, quality: 0.98 },
+      enableLinks: true,
+      html2canvas: {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+      },
+      jsPDF: {
+        unit: "in",
+        format: "a4",
+        orientation: "portrait" as const,
+      },
+      pagebreak: {
+        mode: ["css", "legacy"],
+        avoid: ["h1", "h2", "h3", "pre", "blockquote", "li", "table"],
+      },
+    };
+
+    const arrayBuffer = await html2pdf()
+      .set(pdfOptions)
+      .from(exportElement)
+      .toPdf()
+      .outputPdf("arraybuffer");
+
+    return new Uint8Array(arrayBuffer);
+  } finally {
+    host.remove();
+  }
+}
+
+export async function markdownToDocxBytes(
+  markdown: string,
+  direction: ExportDocumentDirection = "ltr",
+) {
+  const doc = new Document({
+    creator: "MDtor",
+    description: "Markdown document exported from MDtor",
+    styles: createDocxStyles(),
+    numbering: {
+      config: [
+        {
+          reference: "mdtor-bullet-list",
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.BULLET,
+              text: "•",
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+            },
+          ],
+        },
+        {
+          reference: "mdtor-ordered-list",
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.DECIMAL,
+              text: "%1.",
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+            },
+          ],
+        },
+      ],
+    },
+    sections: [
+      {
+        properties: {
+          page: {
+            size: { width: 11906, height: 16838 },
+            margin: {
+              top: docxPageMargin,
+              right: docxPageMargin,
+              bottom: docxPageMargin,
+              left: docxPageMargin,
+            },
+          },
+        },
+        children: renderDocxBlocks(markdown, { direction }),
+      },
+    ],
+  });
+  const arrayBuffer = await Packer.toArrayBuffer(doc);
+
+  return new Uint8Array(arrayBuffer);
+}
+
+function createExportStyleElement(direction: ExportDocumentDirection) {
+  const style = document.createElement("style");
+
+  style.textContent = getExportCss(getExportDirection(direction));
+
+  return style;
+}
+
+function getExportCss(direction: ExportDocumentDirection) {
+  const textAlign = direction === "rtl" ? "right" : "left";
+  const listPadding =
+    direction === "rtl" ? "padding-right: 1.55rem;" : "padding-left: 1.55rem;";
+  const listReset = direction === "rtl" ? "padding-left: 0;" : "padding-right: 0;";
+  const quoteBorder =
+    direction === "rtl"
+      ? `border-right: 4px solid ${exportStyleContract.colors.muted}; border-left: 0;`
+      : `border-left: 4px solid ${exportStyleContract.colors.muted}; border-right: 0;`;
+
+  return `
+    @page { size: ${exportStyleContract.page.size}; margin: ${exportStyleContract.page.margin}; }
+    html, body { margin: 0; padding: 0; background: #ffffff; }
+    body {
+      color: ${exportStyleContract.colors.text};
+      font-family: ${exportStyleContract.fontFamily};
+      font-size: 12pt;
+      line-height: 1.65;
+      direction: ${direction};
+      text-align: ${textAlign};
+    }
+    .export-document {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #ffffff;
+    }
+    .export-document > :first-child { margin-top: 0; }
+    .export-document > :last-child { margin-bottom: 0; }
+    h1, h2, h3, h4, h5, h6 {
+      break-after: avoid;
+      page-break-after: avoid;
+      margin: 1.35em 0 0.55em;
+      color: ${exportStyleContract.colors.textStrong};
+      font-family: ${exportStyleContract.headingFontFamily};
+      line-height: 1.2;
+    }
+    h1 {
+      border-bottom: 1px solid ${exportStyleContract.colors.border};
+      padding-bottom: 0.25em;
+      font-size: 2rem;
+    }
+    h2 {
+      border-bottom: 1px solid ${exportStyleContract.colors.border};
+      padding-bottom: 0.2em;
+      font-size: 1.45rem;
+    }
+    h3 { font-size: 1.18rem; }
+    p { margin: 0 0 1em; }
+    a {
+      color: ${exportStyleContract.colors.link};
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.15em;
+    }
+    ul, ol {
+      margin: 0 0 1em;
+      ${listPadding}
+      ${listReset}
+    }
+    li {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    li + li { margin-top: 0.2em; }
+    blockquote {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      margin: 0 0 1em;
+      padding: 0.2em 1em;
+      color: ${exportStyleContract.colors.muted};
+      ${quoteBorder}
+      background: ${exportStyleContract.colors.quoteBackground};
+    }
+    pre, code, kbd, samp {
+      direction: ltr;
+      text-align: left;
+      unicode-bidi: isolate;
+      font-family: ${exportStyleContract.codeFontFamily};
+    }
+    code {
+      border-radius: 5px;
+      padding: 0.16em 0.34em;
+      background: ${exportStyleContract.colors.codeBackground};
+      font-size: 0.9em;
+    }
+    pre {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      overflow: hidden;
+      margin: 0 0 1em;
+      border: 1px solid ${exportStyleContract.colors.border};
+      border-radius: 8px;
+      padding: 16px;
+      background: ${exportStyleContract.colors.codeBlockBackground};
+      color: ${exportStyleContract.colors.codeBlockText};
+      direction: ltr;
+      text-align: left;
+      unicode-bidi: isolate;
+      white-space: pre-wrap;
+    }
+    pre code {
+      display: block;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      white-space: pre-wrap;
+    }
+    table {
+      width: 100%;
+      margin: 0 0 1em;
+      border-collapse: collapse;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid ${exportStyleContract.colors.border};
+      padding: 0.4em 0.55em;
+      vertical-align: top;
+    }
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 1rem 0;
+    }
+    .hljs { color: ${exportStyleContract.colors.codeBlockText}; }
+    .hljs-keyword, .hljs-built_in, .hljs-type, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id { color: ${exportStyleContract.colors.keyword}; }
+    .hljs-title, .hljs-section, .hljs-function, .hljs-name { color: ${exportStyleContract.colors.title}; }
+    .hljs-string, .hljs-regexp, .hljs-symbol, .hljs-template-variable, .hljs-template-tag, .hljs-addition { color: ${exportStyleContract.colors.string}; }
+    .hljs-number, .hljs-literal { color: ${exportStyleContract.colors.number}; }
+    .hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-subst, .hljs-deletion { color: ${exportStyleContract.colors.attribute}; }
+    .hljs-comment, .hljs-quote { color: ${exportStyleContract.colors.comment}; font-style: italic; }
+    .hljs-meta, .hljs-doctag, .hljs-tag { color: ${exportStyleContract.colors.meta}; }
+    @media print {
+      .export-document { max-width: none; width: 100%; }
+    }
+  `;
+}
+
+function createDocxStyles() {
+  return {
+    default: {
+      document: {
+        run: {
+          font: "Georgia",
+          size: 24,
+          color: trimHash(exportStyleContract.colors.text),
+        },
+        paragraph: {
+          spacing: { after: 180, line: 320 },
+        },
+      },
+    },
+    paragraphStyles: [
+      {
+        id: "Heading1",
+        name: "Heading 1",
+        basedOn: "Normal",
+        next: "Normal",
+        quickFormat: true,
+        run: {
+          bold: true,
+          font: "Aptos",
+          size: 34,
+          color: trimHash(exportStyleContract.colors.textStrong),
+        },
+        paragraph: {
+          keepNext: true,
+          spacing: { before: 420, after: 180 },
+          border: {
+            bottom: {
+              color: trimHash(exportStyleContract.colors.border),
+              style: BorderStyle.SINGLE,
+              size: 6,
+            },
+          },
+        },
+      },
+      {
+        id: "Heading2",
+        name: "Heading 2",
+        basedOn: "Normal",
+        next: "Normal",
+        quickFormat: true,
+        run: {
+          bold: true,
+          font: "Aptos",
+          size: 28,
+          color: trimHash(exportStyleContract.colors.textStrong),
+        },
+        paragraph: {
+          keepNext: true,
+          spacing: { before: 360, after: 160 },
+          border: {
+            bottom: {
+              color: trimHash(exportStyleContract.colors.border),
+              style: BorderStyle.SINGLE,
+              size: 4,
+            },
+          },
+        },
+      },
+      {
+        id: "Heading3",
+        name: "Heading 3",
+        basedOn: "Normal",
+        next: "Normal",
+        quickFormat: true,
+        run: {
+          bold: true,
+          font: "Aptos",
+          size: 24,
+          color: trimHash(exportStyleContract.colors.textStrong),
+        },
+        paragraph: {
+          keepNext: true,
+          spacing: { before: 280, after: 140 },
+        },
+      },
+      {
+        id: "Quote",
+        name: "Quote",
+        basedOn: "Normal",
+        quickFormat: true,
+        run: {
+          italics: true,
+          color: trimHash(exportStyleContract.colors.muted),
+        },
+        paragraph: {
+          indent: { left: 360, right: 360 },
+          spacing: { before: 80, after: 200 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: trimHash(exportStyleContract.colors.quoteBackground),
+          },
+          border: {
+            left: {
+              color: trimHash(exportStyleContract.colors.muted),
+              style: BorderStyle.SINGLE,
+              size: 24,
+            },
+          },
+        },
+      },
+      {
+        id: "CodeBlock",
+        name: "Code Block",
+        basedOn: "Normal",
+        quickFormat: true,
+        run: {
+          font: "Consolas",
+          size: 20,
+          color: trimHash(exportStyleContract.colors.codeBlockText),
+        },
+        paragraph: {
+          bidirectional: false,
+          spacing: { before: 80, after: 200 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: trimHash(exportStyleContract.colors.codeBlockBackground),
+          },
+        },
+      },
+    ],
+    characterStyles: [
+      {
+        id: "CodeText",
+        name: "Code Text",
+        basedOn: "DefaultParagraphFont",
+        run: {
+          font: "Consolas",
+          size: 21,
+          color: trimHash(exportStyleContract.colors.textStrong),
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: trimHash(exportStyleContract.colors.codeBackground),
+          },
+        },
+      },
+    ],
+  };
+}
+
+function renderDocxBlocks(markdown: string, context: DocxRenderContext) {
+  const tokens = getMarkdownTokens(markdown);
+  const children: (Paragraph | Table)[] = [];
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
 
     if (token.type === "heading_open") {
-      lines.push(
-        `${"#".repeat(getHeadingLevel(token))} ${getInlineText(tokens[index + 1])}`,
+      children.push(
+        createDocxParagraph(tokens[index + 1], context, {
+          heading: headingStyles[getHeadingLevel(token) - 1] ?? HeadingLevel.HEADING_1,
+          bidirectional: context.direction === "rtl",
+          alignment: getDocxAlignment(context.direction),
+        }),
       );
-      lines.push("");
       continue;
     }
 
     if (token.type === "paragraph_open") {
-      lines.push(getInlineText(tokens[index + 1]));
-      lines.push("");
+      children.push(
+        createDocxParagraph(tokens[index + 1], context, {
+          bidirectional: context.direction === "rtl",
+          alignment: getDocxAlignment(context.direction),
+        }),
+      );
       continue;
     }
 
     if (token.type === "blockquote_open") {
-      const result = renderPlainBlockquote(tokens, index);
-      lines.push(...result.lines);
+      const result = renderDocxBlockquote(tokens, index, context);
+      children.push(...result.children);
       index = result.nextIndex;
       continue;
     }
 
     if (token.type === "bullet_list_open" || token.type === "ordered_list_open") {
-      const result = renderPlainList(tokens, index, token.type === "ordered_list_open");
-      lines.push(...result.lines);
+      const result = renderDocxList(
+        tokens,
+        index,
+        context,
+        token.type === "ordered_list_open",
+      );
+      children.push(...result.children);
       index = result.nextIndex;
       continue;
     }
 
     if (token.type === "fence" || token.type === "code_block") {
-      lines.push(...token.content.replace(/\n$/, "").split("\n"));
-      lines.push("");
+      children.push(...renderDocxCodeBlock(token.content, token.info));
+      continue;
+    }
+
+    if (token.type === "table_open") {
+      const result = renderDocxTable(tokens, index, context);
+      children.push(result.table);
+      index = result.nextIndex;
     }
   }
 
-  return lines;
+  return children.length > 0 ? children : [new Paragraph("")];
+}
+
+function createDocxParagraph(
+  inlineToken: Token | undefined,
+  context: DocxRenderContext,
+  options: IParagraphOptions = {},
+) {
+  const children = inlineToken?.children
+    ? renderDocxInlineTokens(inlineToken.children, context, {
+        rightToLeft: context.direction === "rtl",
+      })
+    : [];
+
+  return new Paragraph({
+    ...options,
+    children: children.length > 0 ? children : [new TextRun("")],
+  });
+}
+
+function renderDocxInlineTokens(
+  tokens: Token[],
+  context: DocxRenderContext,
+  style: InlineStyle = {},
+): ParagraphChild[] {
+  const children: ParagraphChild[] = [];
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === "strong_open" || token.type === "em_open") {
+      const closeType = token.type === "strong_open" ? "strong_close" : "em_close";
+      const closeIndex = findMatchingInlineClose(tokens, index, closeType);
+      const nextStyle =
+        token.type === "strong_open"
+          ? { ...style, bold: true }
+          : { ...style, italics: true };
+
+      children.push(
+        ...renderDocxInlineTokens(
+          tokens.slice(index + 1, closeIndex),
+          context,
+          nextStyle,
+        ),
+      );
+      index = closeIndex;
+      continue;
+    }
+
+    if (token.type === "link_open") {
+      const closeIndex = findMatchingInlineClose(tokens, index, "link_close");
+      const href = token.attrGet("href");
+      const target = href ? getSafeDocxLinkTarget(href) : null;
+      const linkChildren = renderDocxInlineTokens(
+        tokens.slice(index + 1, closeIndex),
+        context,
+        style,
+      );
+
+      if (target) {
+        children.push(
+          new ExternalHyperlink({
+            link: target,
+            children:
+              linkChildren.length > 0
+                ? linkChildren
+                : [createDocxTextRun(target, { ...style, rightToLeft: false })],
+          }),
+        );
+      } else {
+        children.push(...linkChildren);
+      }
+
+      index = closeIndex;
+      continue;
+    }
+
+    if (token.type === "code_inline") {
+      children.push(
+        createDocxTextRun(token.content, { ...style, code: true, rightToLeft: false }),
+      );
+      continue;
+    }
+
+    if (token.type === "text" || token.type === "image") {
+      children.push(
+        createDocxTextRun(stripInertMarkdownLinkTargets(token.content), style),
+      );
+      continue;
+    }
+
+    if (token.type === "softbreak" || token.type === "hardbreak") {
+      children.push(new TextRun({ break: 1 }));
+      continue;
+    }
+
+    if (token.children) {
+      children.push(...renderDocxInlineTokens(token.children, context, style));
+    }
+  }
+
+  return children;
+}
+
+function createDocxTextRun(text: string, style: InlineStyle = {}) {
+  return new TextRun({
+    text,
+    bold: style.bold,
+    italics: style.italics,
+    style: style.code ? "CodeText" : undefined,
+    rightToLeft: style.rightToLeft,
+  });
+}
+
+function renderDocxList(
+  tokens: Token[],
+  startIndex: number,
+  context: DocxRenderContext,
+  ordered: boolean,
+) {
+  const closeIndex = findMatchingBlockClose(
+    tokens,
+    startIndex,
+    ordered ? "ordered_list_close" : "bullet_list_close",
+  );
+  const children: Paragraph[] = [];
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    const token = tokens[index];
+
+    if (token.type !== "list_item_open") {
+      continue;
+    }
+
+    const itemCloseIndex = findMatchingBlockClose(tokens, index, "list_item_close");
+    const inlineToken = findFirstInlineToken(tokens, index + 1, itemCloseIndex);
+
+    children.push(
+      createDocxParagraph(inlineToken, context, {
+        numbering: {
+          reference: ordered ? "mdtor-ordered-list" : "mdtor-bullet-list",
+          level: 0,
+        },
+        bidirectional: context.direction === "rtl",
+        alignment: getDocxAlignment(context.direction),
+        spacing: { after: 90 },
+      }),
+    );
+    index = itemCloseIndex;
+  }
+
+  return {
+    children,
+    nextIndex: closeIndex,
+  };
+}
+
+function renderDocxBlockquote(
+  tokens: Token[],
+  startIndex: number,
+  context: DocxRenderContext,
+) {
+  const closeIndex = findMatchingBlockClose(tokens, startIndex, "blockquote_close");
+  const children: Paragraph[] = [];
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    if (tokens[index].type === "inline") {
+      children.push(
+        createDocxParagraph(tokens[index], context, {
+          style: "Quote",
+          bidirectional: context.direction === "rtl",
+          alignment: getDocxAlignment(context.direction),
+        }),
+      );
+    }
+  }
+
+  return {
+    children,
+    nextIndex: closeIndex,
+  };
+}
+
+function renderDocxCodeBlock(code: string, languageName: string) {
+  return code
+    .replace(/\n$/, "")
+    .split("\n")
+    .map(
+      (line) =>
+        new Paragraph({
+          style: "CodeBlock",
+          bidirectional: false,
+          alignment: AlignmentType.LEFT,
+          children: renderHighlightedCodeRuns(line, languageName),
+        }),
+    );
+}
+
+function renderHighlightedCodeRuns(code: string, languageName: string) {
+  const highlightedHtml = highlightCodeToHtml(code, languageName);
+  const parsedDocument = new DOMParser().parseFromString(
+    `<code>${highlightedHtml}</code>`,
+    "text/html",
+  );
+  const codeElement = parsedDocument.querySelector("code");
+  const runs: TextRun[] = [];
+
+  if (!codeElement) {
+    return [createCodeRun(code)];
+  }
+
+  appendCodeRuns(codeElement, runs);
+
+  return runs.length > 0 ? runs : [createCodeRun("")];
+}
+
+function appendCodeRuns(node: Node, runs: TextRun[], inheritedColor?: string) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent ?? "";
+
+    if (text) {
+      runs.push(createCodeRun(text, inheritedColor));
+    }
+
+    return;
+  }
+
+  if (!(node instanceof Element)) {
+    return;
+  }
+
+  const color = getCodeTokenColor(node) ?? inheritedColor;
+
+  for (const child of node.childNodes) {
+    appendCodeRuns(child, runs, color);
+  }
+}
+
+function createCodeRun(
+  text: string,
+  color = trimHash(exportStyleContract.colors.codeBlockText),
+) {
+  return new TextRun({
+    text,
+    font: "Consolas",
+    size: 20,
+    color,
+    rightToLeft: false,
+  });
+}
+
+function getCodeTokenColor(element: Element) {
+  const classList = Array.from(element.classList);
+
+  if (classList.some((className) => /keyword|built_in|type|selector/.test(className))) {
+    return trimHash(exportStyleContract.colors.keyword);
+  }
+
+  if (classList.some((className) => /title|section|function|name/.test(className))) {
+    return trimHash(exportStyleContract.colors.title);
+  }
+
+  if (
+    classList.some((className) =>
+      /string|regexp|symbol|template|addition/.test(className),
+    )
+  ) {
+    return trimHash(exportStyleContract.colors.string);
+  }
+
+  if (classList.some((className) => /number|literal/.test(className))) {
+    return trimHash(exportStyleContract.colors.number);
+  }
+
+  if (
+    classList.some((className) =>
+      /attr|attribute|property|variable|subst|deletion/.test(className),
+    )
+  ) {
+    return trimHash(exportStyleContract.colors.attribute);
+  }
+
+  if (classList.some((className) => /comment|quote/.test(className))) {
+    return trimHash(exportStyleContract.colors.comment);
+  }
+
+  if (classList.some((className) => /meta|doctag|tag/.test(className))) {
+    return trimHash(exportStyleContract.colors.meta);
+  }
+
+  return null;
+}
+
+function renderDocxTable(
+  tokens: Token[],
+  startIndex: number,
+  context: DocxRenderContext,
+) {
+  const closeIndex = findMatchingBlockClose(tokens, startIndex, "table_close");
+  const rows: TableRow[] = [];
+  let currentCells: TableCell[] = [];
+
+  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+    const token = tokens[index];
+
+    if (token.type === "tr_open") {
+      currentCells = [];
+      continue;
+    }
+
+    if (token.type === "tr_close") {
+      rows.push(new TableRow({ children: currentCells }));
+      continue;
+    }
+
+    if (token.type === "th_open" || token.type === "td_open") {
+      const inlineToken = findFirstInlineToken(tokens, index + 1, closeIndex);
+      const isHeader = token.type === "th_open";
+
+      currentCells.push(
+        new TableCell({
+          shading: isHeader
+            ? {
+                type: ShadingType.CLEAR,
+                fill: trimHash(exportStyleContract.colors.quoteBackground),
+              }
+            : undefined,
+          children: [
+            createDocxParagraph(inlineToken, context, {
+              bidirectional: context.direction === "rtl",
+              alignment: getDocxAlignment(context.direction),
+            }),
+          ],
+        }),
+      );
+    }
+  }
+
+  return {
+    table: new Table({
+      rows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.AUTOFIT,
+    }),
+    nextIndex: closeIndex,
+  };
 }
 
 function getHeadingLevel(token: Token) {
   const level = Number(token.tag.replace("h", ""));
 
-  return Number.isFinite(level) ? level : 1;
-}
-
-function getInlineText(token: Token | undefined): string {
-  if (!token) {
-    return "";
-  }
-
-  if (token.children) {
-    return token.children.map(getInlineText).join("");
-  }
-
-  if (token.type === "text" || token.type === "code_inline" || token.type === "image") {
-    return token.content;
-  }
-
-  if (token.type === "softbreak" || token.type === "hardbreak") {
-    return "\n";
-  }
-
-  return "";
+  return Number.isFinite(level) ? Math.min(Math.max(level, 1), 6) : 1;
 }
 
 function findMatchingBlockClose(tokens: Token[], openIndex: number, closeType: string) {
@@ -174,257 +959,6 @@ function findMatchingBlockClose(tokens: Token[], openIndex: number, closeType: s
   return tokens.length - 1;
 }
 
-function findFirstInlineToken(tokens: Token[], startIndex: number, endIndex: number) {
-  for (let index = startIndex; index < endIndex; index += 1) {
-    if (tokens[index].type === "inline") {
-      return tokens[index];
-    }
-  }
-
-  return undefined;
-}
-
-function renderPlainList(tokens: Token[], startIndex: number, ordered: boolean) {
-  const closeIndex = findMatchingBlockClose(
-    tokens,
-    startIndex,
-    ordered ? "ordered_list_close" : "bullet_list_close",
-  );
-  const lines: string[] = [];
-  const startAttribute = tokens[startIndex].attrGet("start");
-  let itemNumber = startAttribute ? Number(startAttribute) : 1;
-
-  if (!Number.isFinite(itemNumber)) {
-    itemNumber = 1;
-  }
-
-  for (let index = startIndex + 1; index < closeIndex; index += 1) {
-    const token = tokens[index];
-
-    if (token.type !== "list_item_open") {
-      continue;
-    }
-
-    const itemCloseIndex = findMatchingBlockClose(tokens, index, "list_item_close");
-    const inlineToken = findFirstInlineToken(tokens, index + 1, itemCloseIndex);
-    const marker = ordered ? `${itemNumber}.` : "-";
-
-    lines.push(`${marker} ${getInlineText(inlineToken)}`);
-    itemNumber += 1;
-    index = itemCloseIndex;
-  }
-
-  lines.push("");
-
-  return {
-    lines,
-    nextIndex: closeIndex,
-  };
-}
-
-function renderPlainBlockquote(tokens: Token[], startIndex: number) {
-  const closeIndex = findMatchingBlockClose(tokens, startIndex, "blockquote_close");
-  const lines: string[] = [];
-
-  for (let index = startIndex + 1; index < closeIndex; index += 1) {
-    if (tokens[index].type === "inline") {
-      lines.push(getInlineText(tokens[index]));
-    }
-  }
-
-  lines.push("");
-
-  return {
-    lines,
-    nextIndex: closeIndex,
-  };
-}
-
-function escapePdfText(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-}
-
-export function markdownToPdfBytes(markdown: string, title = "Document") {
-  const lines = [
-    title,
-    "",
-    ...markdownToPlainLines(markdown).flatMap((line) =>
-      line.length > 92
-        ? (line.match(/.{1,92}(\s|$)/g)?.map((part) => part.trim()) ?? [line])
-        : [line],
-    ),
-  ];
-  const lineHeight = 16;
-  const pageHeight = Math.max(792, 96 + lines.length * lineHeight);
-  const textCommands = lines
-    .map(
-      (line, index) =>
-        `1 0 0 1 72 ${pageHeight - 72 - index * lineHeight} Tm (${escapePdfText(line)}) Tj`,
-    )
-    .join("\n");
-  const stream = `BT
-/F1 11 Tf
-${textCommands}
-ET`;
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    `2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj`,
-    `3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj`,
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${textEncoder.encode(stream).length} >> stream
-${stream}
-endstream endobj`,
-  ];
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  for (const object of objects) {
-    offsets.push(textEncoder.encode(pdf).length);
-    pdf += `${object}\n`;
-  }
-
-  const xrefOffset = textEncoder.encode(pdf).length;
-  pdf += `xref
-0 ${objects.length + 1}
-0000000000 65535 f 
-${offsets
-  .slice(1)
-  .map((offset) => `${String(offset).padStart(10, "0")} 00000 n `)
-  .join("\n")}
-trailer << /Root 1 0 R /Size ${objects.length + 1} >>
-startxref
-${xrefOffset}
-%%EOF`;
-
-  return textEncoder.encode(pdf);
-}
-
-function crc32(bytes: Uint8Array) {
-  let crc = 0xffffffff;
-
-  for (const byte of bytes) {
-    crc ^= byte;
-
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-    }
-  }
-
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function writeUint16(output: number[], value: number) {
-  output.push(value & 0xff, (value >>> 8) & 0xff);
-}
-
-function writeUint32(output: number[], value: number) {
-  output.push(
-    value & 0xff,
-    (value >>> 8) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 24) & 0xff,
-  );
-}
-
-function createStoredZip(entries: { name: string; content: string }[]) {
-  const output: number[] = [];
-  const centralDirectory: number[] = [];
-
-  for (const entry of entries) {
-    const nameBytes = textEncoder.encode(entry.name);
-    const contentBytes = textEncoder.encode(entry.content);
-    const checksum = crc32(contentBytes);
-    const localHeaderOffset = output.length;
-
-    writeUint32(output, 0x04034b50);
-    writeUint16(output, 20);
-    writeUint16(output, 0);
-    writeUint16(output, 0);
-    writeUint16(output, 0);
-    writeUint16(output, 0);
-    writeUint32(output, checksum);
-    writeUint32(output, contentBytes.length);
-    writeUint32(output, contentBytes.length);
-    writeUint16(output, nameBytes.length);
-    writeUint16(output, 0);
-    output.push(...nameBytes, ...contentBytes);
-
-    writeUint32(centralDirectory, 0x02014b50);
-    writeUint16(centralDirectory, 20);
-    writeUint16(centralDirectory, 20);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint32(centralDirectory, checksum);
-    writeUint32(centralDirectory, contentBytes.length);
-    writeUint32(centralDirectory, contentBytes.length);
-    writeUint16(centralDirectory, nameBytes.length);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint16(centralDirectory, 0);
-    writeUint32(centralDirectory, 0);
-    writeUint32(centralDirectory, localHeaderOffset);
-    centralDirectory.push(...nameBytes);
-  }
-
-  const centralDirectoryOffset = output.length;
-  output.push(...centralDirectory);
-  writeUint32(output, 0x06054b50);
-  writeUint16(output, 0);
-  writeUint16(output, 0);
-  writeUint16(output, entries.length);
-  writeUint16(output, entries.length);
-  writeUint32(output, centralDirectory.length);
-  writeUint32(output, centralDirectoryOffset);
-  writeUint16(output, 0);
-
-  return new Uint8Array(output);
-}
-
-type DocxRelationship = {
-  id: string;
-  target: string;
-};
-
-type DocxRenderContext = {
-  relationships: DocxRelationship[];
-};
-
-const safeDocxLinkProtocols = new Set(["http:", "https:", "mailto:"]);
-
-function getSafeDocxLinkTarget(href: string) {
-  const trimmedHref = href.trim();
-
-  try {
-    const url = new URL(trimmedHref);
-
-    return safeDocxLinkProtocols.has(url.protocol.toLowerCase()) ? trimmedHref : null;
-  } catch {
-    return null;
-  }
-}
-
-function addDocxHyperlink(context: DocxRenderContext, target: string) {
-  const id = `rId${context.relationships.length + 1}`;
-  context.relationships.push({ id, target });
-  return id;
-}
-
-function renderDocxTextRun(text: string, runStyle?: string) {
-  const styleXml = runStyle ? `<w:rPr><w:rStyle w:val="${runStyle}"/></w:rPr>` : "";
-
-  return text
-    .split("\n")
-    .map((part, index) => {
-      const breakXml = index === 0 ? "" : "<w:br/>";
-
-      return `<w:r>${styleXml}${breakXml}<w:t>${escapeXml(part)}</w:t></w:r>`;
-    })
-    .join("");
-}
-
 function findMatchingInlineClose(tokens: Token[], openIndex: number, closeType: string) {
   const openType = tokens[openIndex].type;
   let depth = 0;
@@ -446,239 +980,36 @@ function findMatchingInlineClose(tokens: Token[], openIndex: number, closeType: 
   return openIndex;
 }
 
-function renderDocxInlineTokens(tokens: Token[], context: DocxRenderContext): string {
-  let xml = "";
-
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-
-    if (token.type === "link_open") {
-      const closeIndex = findMatchingInlineClose(tokens, index, "link_close");
-      const href = token.attrGet("href");
-      const target = href ? getSafeDocxLinkTarget(href) : null;
-      const innerXml = renderDocxInlineTokens(
-        tokens.slice(index + 1, closeIndex),
-        context,
-      );
-
-      if (target) {
-        const relationshipId = addDocxHyperlink(context, target);
-
-        xml += `<w:hyperlink r:id="${relationshipId}" w:history="1">${innerXml}</w:hyperlink>`;
-      } else {
-        xml += innerXml;
-      }
-
-      index = closeIndex;
-      continue;
-    }
-
-    if (token.type === "text" || token.type === "image") {
-      xml += renderDocxTextRun(token.content);
-      continue;
-    }
-
-    if (token.type === "code_inline") {
-      xml += renderDocxTextRun(token.content, "Code");
-      continue;
-    }
-
-    if (token.type === "softbreak" || token.type === "hardbreak") {
-      xml += "<w:r><w:br/></w:r>";
-      continue;
-    }
-
-    if (token.children) {
-      xml += renderDocxInlineTokens(token.children, context);
-    }
-  }
-
-  return xml;
-}
-
-function renderDocxParagraph(
-  inlineToken: Token | undefined,
-  context: DocxRenderContext,
-  style?: string,
-  prefix = "",
-) {
-  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
-  const prefixXml = prefix ? renderDocxTextRun(prefix) : "";
-  const inlineXml = inlineToken?.children
-    ? renderDocxInlineTokens(inlineToken.children, context)
-    : "";
-
-  return `<w:p>${styleXml}${prefixXml}${inlineXml}</w:p>`;
-}
-
-function renderDocxTextParagraph(text: string, style?: string) {
-  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
-
-  return `<w:p>${styleXml}${renderDocxTextRun(text, style === "Code" ? "Code" : undefined)}</w:p>`;
-}
-
-function renderDocxList(
-  tokens: Token[],
-  startIndex: number,
-  context: DocxRenderContext,
-  ordered: boolean,
-) {
-  const closeIndex = findMatchingBlockClose(
-    tokens,
-    startIndex,
-    ordered ? "ordered_list_close" : "bullet_list_close",
-  );
-  const startAttribute = tokens[startIndex].attrGet("start");
-  let itemNumber = startAttribute ? Number(startAttribute) : 1;
-  let xml = "";
-
-  if (!Number.isFinite(itemNumber)) {
-    itemNumber = 1;
-  }
-
-  for (let index = startIndex + 1; index < closeIndex; index += 1) {
-    const token = tokens[index];
-
-    if (token.type !== "list_item_open") {
-      continue;
-    }
-
-    const itemCloseIndex = findMatchingBlockClose(tokens, index, "list_item_close");
-    const inlineToken = findFirstInlineToken(tokens, index + 1, itemCloseIndex);
-    const marker = ordered ? `${itemNumber}. ` : "- ";
-
-    xml += renderDocxParagraph(inlineToken, context, "ListParagraph", marker);
-    itemNumber += 1;
-    index = itemCloseIndex;
-  }
-
-  return {
-    xml,
-    nextIndex: closeIndex,
-  };
-}
-
-function renderDocxBlockquote(
-  tokens: Token[],
-  startIndex: number,
-  context: DocxRenderContext,
-) {
-  const closeIndex = findMatchingBlockClose(tokens, startIndex, "blockquote_close");
-  let xml = "";
-
-  for (let index = startIndex + 1; index < closeIndex; index += 1) {
+function findFirstInlineToken(tokens: Token[], startIndex: number, endIndex: number) {
+  for (let index = startIndex; index < endIndex; index += 1) {
     if (tokens[index].type === "inline") {
-      xml += renderDocxParagraph(tokens[index], context, "Quote");
+      return tokens[index];
     }
   }
 
-  return {
-    xml,
-    nextIndex: closeIndex,
-  };
+  return undefined;
 }
 
-function renderDocxBody(markdown: string, context: DocxRenderContext) {
-  const tokens = getExportMarkdownTokens(markdown);
-  let xml = "";
+function getSafeDocxLinkTarget(href: string) {
+  const trimmedHref = href.trim();
 
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
+  try {
+    const url = new URL(trimmedHref);
 
-    if (token.type === "heading_open") {
-      xml += renderDocxParagraph(
-        tokens[index + 1],
-        context,
-        `Heading${getHeadingLevel(token)}`,
-      );
-      continue;
-    }
-
-    if (token.type === "paragraph_open") {
-      xml += renderDocxParagraph(tokens[index + 1], context);
-      continue;
-    }
-
-    if (token.type === "blockquote_open") {
-      const result = renderDocxBlockquote(tokens, index, context);
-      xml += result.xml;
-      index = result.nextIndex;
-      continue;
-    }
-
-    if (token.type === "bullet_list_open" || token.type === "ordered_list_open") {
-      const result = renderDocxList(
-        tokens,
-        index,
-        context,
-        token.type === "ordered_list_open",
-      );
-      xml += result.xml;
-      index = result.nextIndex;
-      continue;
-    }
-
-    if (token.type === "fence" || token.type === "code_block") {
-      xml += renderDocxTextParagraph(token.content.replace(/\n$/, ""), "Code");
-    }
+    return safeDocxLinkProtocols.has(url.protocol.toLowerCase()) ? trimmedHref : null;
+  } catch {
+    return null;
   }
-
-  return xml;
 }
 
-export function markdownToDocxBytes(markdown: string) {
-  const context: DocxRenderContext = { relationships: [] };
-  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <w:body>
-    ${renderDocxBody(markdown, context)}
-    <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
-  </w:body>
-</w:document>`;
-  const documentRelationshipsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  ${context.relationships
-    .map(
-      (relationship) =>
-        `<Relationship Id="${relationship.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(relationship.target)}" TargetMode="External"/>`,
-    )
-    .join("\n")}
-</Relationships>`;
+function getDocxAlignment(direction: ExportDocumentDirection) {
+  return direction === "rtl" ? AlignmentType.RIGHT : AlignmentType.LEFT;
+}
 
-  return createStoredZip([
-    {
-      name: "[Content_Types].xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
-</Types>`,
-    },
-    {
-      name: "_rels/.rels",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`,
-    },
-    {
-      name: "word/document.xml",
-      content: documentXml,
-    },
-    {
-      name: "word/_rels/document.xml.rels",
-      content: documentRelationshipsXml,
-    },
-    {
-      name: "word/styles.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/></w:style>
-  <w:style w:type="paragraph" w:styleId="Code"><w:name w:val="Code"/></w:style>
-  <w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/></w:style>
-</w:styles>`,
-    },
-  ]);
+function trimHash(value: string) {
+  return value.replace(/^#/, "");
+}
+
+function stripInertMarkdownLinkTargets(text: string) {
+  return text.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
 }

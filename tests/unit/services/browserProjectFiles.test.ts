@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createBrowserProjectFile,
   deleteBrowserProjectFile,
+  deleteBrowserProjectFolder,
   openBrowserProjectFolder,
   readBrowserProjectAsset,
   readBrowserProjectFile,
   renameBrowserProjectFile,
+  renameBrowserProjectFolder,
   saveBrowserProjectFile,
   scanBrowserProjectFolder,
   type BrowserProjectFile,
@@ -27,8 +29,8 @@ class TestFileHandle {
 
   async createWritable() {
     return {
-      write: async (content: string) => {
-        this.content = content;
+      write: async (content: Blob | string) => {
+        this.content = typeof content === "string" ? content : await content.text();
       },
       close: async () => {},
     };
@@ -206,6 +208,30 @@ describe("browserProjectFiles", () => {
     expect(fileHandles.has("old.md")).toBe(false);
   });
 
+  it("deletes folders recursively and refreshes cached file handles", async () => {
+    const root = new TestDirectoryHandle("root");
+    const notes = new TestDirectoryHandle("notes");
+    const images = new TestDirectoryHandle("images");
+    const idea = new TestFileHandle("idea.md", "# Idea");
+
+    notes.files.set("idea.md", idea);
+    images.files.set("cover.png", new TestFileHandle("cover.png", "image"));
+    notes.directories.set("images", images);
+    root.directories.set("notes", notes);
+
+    const fileHandles = new Map<string, BrowserProjectFile>([
+      [
+        "notes/idea.md",
+        { kind: "writable", handle: idea as unknown as FileSystemFileHandle },
+      ],
+    ]);
+
+    await deleteBrowserProjectFolder(asDirectoryHandle(root), fileHandles, "notes");
+
+    expect(root.directories.has("notes")).toBe(false);
+    expect(fileHandles.has("notes/idea.md")).toBe(false);
+  });
+
   it("renames Markdown files by creating the destination and deleting the source", async () => {
     const root = new TestDirectoryHandle("root");
     root.files.set("old.md", new TestFileHandle("old.md", "# Old"));
@@ -230,6 +256,43 @@ describe("browserProjectFiles", () => {
     expect(root.directories.get("notes")?.files.get("new.md")?.content).toBe("# Old");
     expect(fileHandles.has("old.md")).toBe(false);
     expect(fileHandles.has("notes/new.md")).toBe(true);
+  });
+
+  it("renames folders recursively and refreshes cached file handles", async () => {
+    const root = new TestDirectoryHandle("root");
+    const drafts = new TestDirectoryHandle("drafts");
+    const images = new TestDirectoryHandle("images");
+    const chapter = new TestFileHandle("chapter.md", "# Chapter");
+
+    drafts.files.set("chapter.md", chapter);
+    images.files.set("cover.png", new TestFileHandle("cover.png", "image"));
+    drafts.directories.set("images", images);
+    root.directories.set("drafts", drafts);
+
+    const fileHandles = new Map<string, BrowserProjectFile>([
+      [
+        "drafts/chapter.md",
+        { kind: "writable", handle: chapter as unknown as FileSystemFileHandle },
+      ],
+    ]);
+
+    await renameBrowserProjectFolder(
+      asDirectoryHandle(root),
+      fileHandles,
+      "drafts",
+      "chapters",
+    );
+
+    expect(root.directories.has("drafts")).toBe(false);
+    expect(root.directories.get("chapters")?.files.get("chapter.md")?.content).toBe(
+      "# Chapter",
+    );
+    expect(
+      root.directories.get("chapters")?.directories.get("images")?.files.get("cover.png")
+        ?.content,
+    ).toBe("image");
+    expect(fileHandles.has("drafts/chapter.md")).toBe(false);
+    expect(fileHandles.has("chapters/chapter.md")).toBe(true);
   });
 
   it("reads relative local image assets", async () => {

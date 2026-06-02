@@ -56,6 +56,8 @@ export function CodeMirrorMarkdownEditor({
   });
   const isApplyingExternalValueRef = useRef(false);
   const isTypewriterModeRef = useRef(isTypewriterMode);
+  const initialValueRef = useRef(value);
+  const initialDirectionRef = useRef(direction);
   const onChangeRef = useRef(onChange);
   const onCurrentLineChangeRef = useRef(onCurrentLineChange);
   const onEditorScrollRef = useRef(onEditorScroll);
@@ -147,7 +149,7 @@ export function CodeMirrorMarkdownEditor({
         view.focus();
       },
     }),
-    [editorRef],
+    [],
   );
 
   useEffect(() => {
@@ -156,16 +158,17 @@ export function CodeMirrorMarkdownEditor({
     }
 
     const compartments = compartmentsRef.current;
+    const initialDirection = initialDirectionRef.current;
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
-        doc: value,
+        doc: initialValueRef.current,
         extensions: [
           basicSetup,
           markdown({ base: markdownLanguage }),
           EditorView.lineWrapping,
-          compartments.contentAttributes.of(createContentAttributes(direction)),
-          compartments.editorAttributes.of(createEditorAttributes(direction)),
+          compartments.contentAttributes.of(createContentAttributes(initialDirection)),
+          compartments.editorAttributes.of(createEditorAttributes(initialDirection)),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && !isApplyingExternalValueRef.current) {
               onChangeRef.current(update.state.doc.toString());

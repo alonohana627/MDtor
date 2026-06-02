@@ -5,9 +5,11 @@
 - Improved large-document editing responsiveness by moving active editing to CodeMirror, deferring preview/outline/stat rendering away from the keystroke path, and adding large-document performance coverage.
 - Improved large-document selection responsiveness by letting CodeMirror own cursor and selection behavior and avoiding preview/outline work on the immediate input path.
 - Replaced the active editor with CodeMirror 6 and the active preview renderer with worker-assisted, sanitized `markdown-it` HTML plus `highlight.js` core code highlighting, task lists, and footnotes.
-- Removed the remaining custom Markdown block parser and export inline parser; outline and export now derive structure from `markdown-it` tokens.
+- Removed the remaining custom Markdown block parser; outline now derives structure from `markdown-it` tokens.
+- Rebuilt export around the preview renderer, adding A4 PDF export and editable DOCX export with shared styling, RTL/LTR direction support, links, lists, blockquotes, inline code, and code blocks.
 - Adjusted preview code syntax highlighting colors for a clearer `highlight.js` palette.
 - Restored preview/editor correlation highlighting by adding source-line metadata to rendered Markdown and marking the preview block that contains the editor cursor line.
+- Added a production sidebar tree with nested folders, persisted expansion, keyboard navigation, resizing, refresh/reveal/create actions, and right-click rename/delete for files and folders.
 
 ## 0.2.2
 
